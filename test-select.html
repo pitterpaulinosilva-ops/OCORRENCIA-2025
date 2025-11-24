@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Select</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #003E7E;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            background: white;
+        }
+        select:focus {
+            outline: none;
+            border-color: #00579D;
+            box-shadow: 0 0 0 3px rgba(0, 87, 157, 0.2);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        h1 {
+            color: #003E7E;
+        }
+        h2 {
+            color: #00579D;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste de Select - Período</h1>
+        <p>Este é um teste isolado para verificar se o select funciona corretamente.</p>
+        
+        <div class="test-section">
+            <h2>Teste 1: Select Simples</h2>
+            <label for="periodo1">Período (Mês/Ano)</label>
+            <select id="periodo1">
+                <option value="Todos">Todos os períodos</option>
+                <option value="2024-06">Junho/2024</option>
+                <option value="2024-11">Novembro/2024</option>
+                <option value="2025-01">Janeiro/2025</option>
+                <option value="2025-02">Fevereiro/2025</option>
+                <option value="2025-03">Março/2025</option>
+                <option value="2025-04">Abril/2025</option>
+                <option value="2025-05">Maio/2025</option>
+                <option value="2025-06">Junho/2025</option>
+                <option value="2025-07">Julho/2025</option>
+                <option value="2025-08">Agosto/2025</option>
+                <option value="2025-09">Setembro/2025</option>
+                <option value="2025-10">Outubro/2025</option>
+                <option value="2025-11">Novembro/2025</option>
+            </select>
+            <div class="result" id="result1">Nenhuma seleção</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Teste 2: Select com stopPropagation</h2>
+            <label for="periodo2">Período (Mês/Ano)</label>
+            <select id="periodo2">
+                <option value="Todos">Todos os períodos</option>
+                <option value="2024-06">Junho/2024</option>
+                <option value="2024-11">Novembro/2024</option>
+                <option value="2025-01">Janeiro/2025</option>
+                <option value="2025-02">Fevereiro/2025</option>
+                <option value="2025-03">Março/2025</option>
+                <option value="2025-04">Abril/2025</option>
+                <option value="2025-05">Maio/2025</option>
+                <option value="2025-06">Junho/2025</option>
+                <option value="2025-07">Julho/2025</option>
+                <option value="2025-08">Agosto/2025</option>
+                <option value="2025-09">Setembro/2025</option>
+                <option value="2025-10">Outubro/2025</option>
+                <option value="2025-11">Novembro/2025</option>
+            </select>
+            <div class="result" id="result2">Nenhuma seleção</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Teste 3: Select dentro de div com onClick</h2>
+            <div id="clickableDiv" style="padding: 15px; background: #fff3cd; border-radius: 8px; cursor: pointer;">
+                <p><strong>⚠️ Esta div tem um onClick que mostra um alert</strong></p>
+                <label for="periodo3">Período (Mês/Ano)</label>
+                <select id="periodo3">
+                    <option value="Todos">Todos os períodos</option>
+                    <option value="2024-06">Junho/2024</option>
+                    <option value="2024-11">Novembro/2024</option>
+                    <option value="2025-01">Janeiro/2025</option>
+                    <option value="2025-02">Fevereiro/2025</option>
+                    <option value="2025-03">Março/2025</option>
+                    <option value="2025-04">Abril/2025</option>
+                    <option value="2025-05">Maio/2025</option>
+                    <option value="2025-06">Junho/2025</option>
+                    <option value="2025-07">Julho/2025</option>
+                    <option value="2025-08">Agosto/2025</option>
+                    <option value="2025-09">Setembro/2025</option>
+                    <option value="2025-10">Outubro/2025</option>
+                    <option value="2025-11">Novembro/2025</option>
+                </select>
+                <div class="result" id="result3">Nenhuma seleção</div>
+            </div>
+        </div>
+        
+        <div class="test-section" style="background: #d4edda;">
+            <h2>✅ Instruções de Teste</h2>
+            <ol>
+                <li><strong>Teste 1:</strong> Clique no select e selecione um período. Deve funcionar normalmente.</li>
+                <li><strong>Teste 2:</strong> Mesmo que o Teste 1, mas com stopPropagation.</li>
+                <li><strong>Teste 3:</strong> O select está dentro de uma div com onClick. Teste se consegue abrir o select sem disparar o alert da div.</li>
+            </ol>
+            <p><strong>Resultado esperado:</strong> Todos os selects devem abrir e funcionar normalmente.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Teste 1: Select simples
+        document.getElementById('periodo1').addEventListener('change', function(e) {
+            document.getElementById('result1').textContent = 'Selecionado: ' + e.target.value;
+            console.log('Teste 1 - Selecionado:', e.target.value);
+        });
+        
+        // Teste 2: Select com stopPropagation
+        const select2 = document.getElementById('periodo2');
+        select2.addEventListener('click', function(e) {
+            e.stopPropagation();
+            console.log('Teste 2 - Click no select (stopPropagation)');
+        });
+        select2.addEventListener('change', function(e) {
+            e.stopPropagation();
+            document.getElementById('result2').textContent = 'Selecionado: ' + e.target.value;
+            console.log('Teste 2 - Selecionado:', e.target.value);
+        });
+        
+        // Teste 3: Div com onClick
+        document.getElementById('clickableDiv').addEventListener('click', function(e) {
+            // Não mostrar alert se o clique foi no select
+            if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') {
+                alert('Div clicada! (Isso NÃO deve aparecer ao clicar no select)');
+            }
+        });
+        
+        const select3 = document.getElementById('periodo3');
+        select3.addEventListener('click', function(e) {
+            e.stopPropagation();
+            console.log('Teste 3 - Click no select (stopPropagation)');
+        });
+        select3.addEventListener('change', function(e) {
+            e.stopPropagation();
+            document.getElementById('result3').textContent = 'Selecionado: ' + e.target.value;
+            console.log('Teste 3 - Selecionado:', e.target.value);
+        });
+        
+        console.log('✅ Teste de Select carregado. Abra o DevTools (F12) para ver os logs.');
+    </script>
+</body>
+</html>

@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ocorrências - SESI/SENAI Alagoas</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.10.3/dist/Recharts.js"></script>
+    
+    <!-- XLSX for Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --primary: 210 100% 25%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96.1%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 24 100% 50%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --border: 214.3 31.8% 91.4%;
+            --radius: 0.75rem;
+        }
+
+        * {
+            border-color: hsl(var(--border));
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #003E7E 0%, #00579D 100%);
+            color: hsl(var(--foreground));
+            min-height: 100vh;
+        }
+        
+        .card {
+            background-color: hsl(var(--card));
+            color: hsl(var(--card-foreground));
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid hsl(var(--border));
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .btn-primary {
+            background-color: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        
+        .text-muted {
+            color: hsl(var(--muted-foreground));
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-slideDown {
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        /* Melhorias de transição */
+        button {
+            transition: all 0.2s ease;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 87, 157, 0.2);
+        }
+        
+        /* Filtros otimizados */
+        .filter-group {
+            min-width: 0; /* Permite que o flex shrink funcione */
+        }
+        
+        .filter-group select {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+        }
+        
+        @media (max-width: 640px) {
+            .filter-group select {
+                font-size: 16px; /* Evita zoom no iOS */
+            }
+        }
+        
+        /* Header fixo ao fazer scroll */
+        .header-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, #003E7E 0%, #00579D 100%);
+            padding: 1rem 1.5rem;
+            margin: -1.5rem -1.5rem 0.5rem -1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .header-sticky.scrolled {
+            padding: 0.5rem 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Painel de filtros sticky */
+        .filters-sticky {
+            position: sticky;
+            top: 70px; /* Abaixo do header */
+            z-index: 90;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        .filters-sticky.hidden {
+            transform: translateY(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .header-sticky {
+                padding: 0.75rem 1rem;
+                margin: -1.5rem -1.5rem 0.5rem -1.5rem;
+            }
+            
+            .header-sticky.scrolled {
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+        // Dados completos dos incidentes
+        const allIncidents = [
+            {codigo: "233", data: "13/06/2024", mes_ano: "2024-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "SP10.2.1.Gerenciar Serviços de Saúde Complementar", responsavel: "carolina.albuquerque", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Não", notificadora: "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)", fase: "Concluída"},
+            {codigo: "252", data: "13/11/2024", mes_ano: "2024-11", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "257", data: "21/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Recoleta de exames laboratoriais", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "259", data: "23/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "260", data: "28/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "263", data: "19/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "266", data: "24/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "267", data: "26/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Near Miss (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Presidência", fase: "Concluída"},
+            {codigo: "268", data: "27/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Recoleta de exames laboratoriais", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "272", data: "11/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "273", data: "13/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Near Miss (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "274", data: "10/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Análise de Ocorrência", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "276", data: "14/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "carolina.albuquerque", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "280", data: "20/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "286", data: "07/04/2025", mes_ano: "2025-04", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Leve", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "jessika.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "289", data: "08/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"},
+            {codigo: "292", data: "15/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "293", data: "16/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "298", data: "29/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"},
+            {codigo: "299", data: "02/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Senai Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"},
+            {codigo: "301", data: "07/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "mylena.soares", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "302", data: "07/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "305", data: "08/05/2025", mes_ano: "2025-05", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "306", data: "08/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "307", data: "12/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Segurança e Saúde para Indústria", fase: "Concluída"},
+            {codigo: "315", data: "23/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "317", data: "29/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Dados inconsistentes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "319", data: "02/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "322", data: "06/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "325", data: "11/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Não", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "326", data: "11/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Não", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "336", data: "01/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "337", data: "01/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "338", data: "03/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "341", data: "07/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "343", data: "07/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "344", data: "07/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "345", data: "08/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "346", data: "08/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "mylena.soares", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "347", data: "10/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "350", data: "10/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar ASO", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "351", data: "09/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Atraso na liberação de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "361", data: "17/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Falha no registro em prontuário (incompleto e/ou ausente)", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "363", data: "22/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Preparo errado do medicamento", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "374", data: "01/08/2025", mes_ano: "2025-08", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "383", data: "07/08/2025", mes_ano: "2025-08", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Atraso na liberação de laudos", acao_imediata: "Sim", notificadora: "Segurança e Saúde para Indústria", fase: "Concluída"},
+            {codigo: "384", data: "01/08/2025", mes_ano: "2025-08", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Dano Moderado (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Gerenciar Plano de Ação"},
+            {codigo: "388", data: "28/08/2025", mes_ano: "2025-08", status: "Em Andamento", notificada: "Segurança e Saúde para Indústria", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "isabella.vieira", ocorrencia: "Outros", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "404", data: "20/10/2025", mes_ano: "2025-10", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Retificação e/ou troca de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "405", data: "20/10/2025", mes_ano: "2025-10", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Retificação e/ou troca de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "408", data: "17/10/2025", mes_ano: "2025-10", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Dispositivo/equipamento médico", origem: "Notificação Clínicas Sesi", processo: "SP10.2.1.Gerenciar Serviços de Saúde Complementar", responsavel: "fania.silva", ocorrencia: "Falha do controle de entrada/saída dos equipamentos terceiros", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Gerenciar Plano de Ação"},
+            {codigo: "413", data: "27/10/2025", mes_ano: "2025-10", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Documentação", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Atraso na liberação de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "414", data: "27/10/2025", mes_ano: "2025-10", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "418", data: "04/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Cambona", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Documentação", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "andrezza.barros", ocorrencia: "Retificação e/ou troca de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "421", data: "14/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Gerenciar Plano de Ação"},
+            {codigo: "422", data: "14/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "423", data: "14/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "424", data: "14/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Gerenciar Plano de Ação"},
+            {codigo: "425", data: "13/11/2025", mes_ano: "2025-11", status: "Em Andamento", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "andrezza.barros", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Analisar Causa e Fazer Plano de Ação"}
+        ];
+
+        // Cores do tema
+        const COLORS = ['#003E7E', '#00579D', '#FF6600', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4'];
+
+        // Componente principal do Dashboard
+        function Dashboard() {
+            const [filteredData, setFilteredData] = useState(allIncidents);
+            const [showFilters, setShowFilters] = useState(false);
+            const [filters, setFilters] = useState({
+                status: 'Todos',
+                unidade: 'Todas',
+                severidade: 'Todas',
+                periodo: 'Todos'
+            });
+            const filterRef = React.useRef(null);
+            const [isScrolled, setIsScrolled] = useState(false);
+            const [hideFiltersOnScroll, setHideFiltersOnScroll] = useState(false);
+            const filterPanelTimeoutRef = React.useRef(null);
+            const lastScrollY = React.useRef(0);
+            
+            // Debug: Log quando showFilters muda
+            useEffect(() => {
+                console.log('🔍 showFilters mudou para:', showFilters);
+            }, [showFilters]);
+
+            // Calcular estatísticas
+            const stats = useMemo(() => {
+                const total = filteredData.length;
+                const concluidos = filteredData.filter(i => i.status === 'Concluído').length;
+                const emAndamento = filteredData.filter(i => i.status === 'Em Andamento').length;
+                
+                return {
+                    total,
+                    concluidos,
+                    emAndamento,
+                    taxaConclusao: total > 0 ? Math.round((concluidos / total) * 100) : 0
+                };
+            }, [filteredData]);
+
+            // Dados para gráficos
+            const severidadeData = useMemo(() => {
+                const counts = {};
+                filteredData.forEach(i => {
+                    const sev = i.severidade.replace(' (Saúde)', '').substring(0, 20);
+                    counts[sev] = (counts[sev] || 0) + 1;
+                });
+                return Object.entries(counts)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value);
+            }, [filteredData]);
+
+            const unidadeData = useMemo(() => {
+                const counts = {};
+                filteredData.forEach(i => {
+                    const unidade = i.notificada.replace('Unidade ', '').replace('Sesi ', '');
+                    counts[unidade] = (counts[unidade] || 0) + 1;
+                });
+                return Object.entries(counts)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 5);
+            }, [filteredData]);
+
+            const ocorrenciaData = useMemo(() => {
+                const counts = {};
+                filteredData.forEach(i => {
+                    const ocorr = i.ocorrencia.substring(0, 30);
+                    counts[ocorr] = (counts[ocorr] || 0) + 1;
+                });
+                return Object.entries(counts)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 8);
+            }, [filteredData]);
+
+            const processoData = useMemo(() => {
+                const counts = {};
+                filteredData.forEach(i => {
+                    const proc = i.processo.substring(0, 30);
+                    counts[proc] = (counts[proc] || 0) + 1;
+                });
+                return Object.entries(counts)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 4);
+            }, [filteredData]);
+
+            const timelineData = useMemo(() => {
+                const counts = {};
+                filteredData.forEach(i => {
+                    const [year, month] = i.mes_ano.split('-');
+                    const monthName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                    counts[monthName] = (counts[monthName] || 0) + 1;
+                });
+                return Object.entries(counts)
+                    .map(([mes, total]) => ({ mes, total }))
+                    .sort((a, b) => a.mes.localeCompare(b.mes));
+            }, [filteredData]);
+
+            // Aplicar filtros
+            useEffect(() => {
+                console.log('🔍 Aplicando filtros:', filters);
+                let filtered = allIncidents;
+                
+                if (filters.status !== 'Todos') {
+                    filtered = filtered.filter(i => i.status === filters.status);
+                    console.log('  ✓ Filtro Status aplicado:', filtered.length, 'resultados');
+                }
+                if (filters.unidade !== 'Todas') {
+                    filtered = filtered.filter(i => i.notificada === filters.unidade);
+                    console.log('  ✓ Filtro Unidade aplicado:', filtered.length, 'resultados');
+                }
+                if (filters.severidade !== 'Todas') {
+                    filtered = filtered.filter(i => i.severidade === filters.severidade);
+                    console.log('  ✓ Filtro Severidade aplicado:', filtered.length, 'resultados');
+                }
+                if (filters.periodo !== 'Todos') {
+                    filtered = filtered.filter(i => i.mes_ano === filters.periodo);
+                    console.log('  ✓ Filtro Período aplicado:', filters.periodo, '-', filtered.length, 'resultados');
+                }
+                
+                console.log('📊 Total após filtros:', filtered.length, 'de', allIncidents.length);
+                setFilteredData(filtered);
+            }, [filters]);
+
+            // Detectar scroll e direção
+            useEffect(() => {
+                const handleScroll = () => {
+                    const scrollPosition = window.scrollY;
+                    const scrollingDown = scrollPosition > lastScrollY.current;
+                    
+                    setIsScrolled(scrollPosition > 100);
+                    
+                    // Esconder painel ao rolar para baixo, mostrar ao rolar para cima
+                    if (showFilters) {
+                        if (scrollingDown && scrollPosition > 150) {
+                            console.log('📜 Scroll para baixo - escondendo painel');
+                            setHideFiltersOnScroll(true);
+                        } else if (!scrollingDown && scrollPosition < lastScrollY.current - 10) {
+                            console.log('📜 Scroll para cima - mostrando painel');
+                            setHideFiltersOnScroll(false);
+                        }
+                    } else {
+                        setHideFiltersOnScroll(false);
+                    }
+                    
+                    lastScrollY.current = scrollPosition;
+                };
+                
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, [showFilters]);
+
+            // Auto-fechar painel de filtros após 2 segundos de inatividade
+            useEffect(() => {
+                if (!showFilters) {
+                    console.log('⏸️ Auto-hide: Painel fechado, não fazer nada');
+                    return;
+                }
+                
+                console.log('⏱️ Auto-hide: Iniciando timer de 2 segundos...');
+                
+                // Limpar timeout anterior
+                if (filterPanelTimeoutRef.current) {
+                    console.log('🧹 Auto-hide: Limpando timer anterior');
+                    clearTimeout(filterPanelTimeoutRef.current);
+                }
+                
+                // Criar novo timeout para fechar após 2 segundos
+                filterPanelTimeoutRef.current = setTimeout(() => {
+                    console.log('⏰ Auto-hide: Timer expirou! Fechando painel...');
+                    setShowFilters(false);
+                }, 2000);
+                
+                return () => {
+                    console.log('🧹 Auto-hide: Cleanup - removendo timer');
+                    if (filterPanelTimeoutRef.current) {
+                        clearTimeout(filterPanelTimeoutRef.current);
+                    }
+                };
+            }, [showFilters]);
+
+            // Fechar filtros ao clicar fora
+            useEffect(() => {
+                if (!showFilters) {
+                    console.log('👆 Click-outside: Painel fechado, não adicionar listener');
+                    return;
+                }
+                
+                console.log('👆 Click-outside: Adicionando listener...');
+                
+                const handleClickOutside = (event) => {
+                    console.log('👆 Click-outside: Click detectado', event.target);
+                    
+                    // Verificar se o clique foi no botão de filtros
+                    const filterButton = event.target.closest('.btn-primary');
+                    if (filterButton) {
+                        console.log('👆 Click-outside: Click no botão, ignorar');
+                        return;
+                    }
+                    
+                    // Verificar se o clique foi fora do painel
+                    if (filterRef.current && !filterRef.current.contains(event.target)) {
+                        console.log('👆 Click-outside: Click fora do painel! Fechando...');
+                        setShowFilters(false);
+                    } else {
+                        console.log('👆 Click-outside: Click dentro do painel, ignorar');
+                    }
+                };
+                
+                // Pequeno delay para evitar que o clique que abre também feche
+                const timeoutId = setTimeout(() => {
+                    console.log('👆 Click-outside: Listener adicionado após delay');
+                    document.addEventListener('mousedown', handleClickOutside);
+                }, 100);
+                
+                return () => {
+                    console.log('👆 Click-outside: Cleanup - removendo listener');
+                    clearTimeout(timeoutId);
+                    document.removeEventListener('mousedown', handleClickOutside);
+                };
+            }, [showFilters]);
+
+            // Limpar filtros
+            const clearFilters = () => {
+                console.log('🧹 Limpando todos os filtros');
+                setFilters({
+                    status: 'Todos',
+                    unidade: 'Todas',
+                    severidade: 'Todas',
+                    periodo: 'Todos'
+                });
+            };
+
+            // Verificar se há filtros ativos
+            const activeFiltersCount = Object.values(filters).filter(v => v !== 'Todos' && v !== 'Todas').length;
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4 md:p-6">
+                    {/* Header com botão de filtros - Fixo ao fazer scroll */}
+                    <div className={`header-sticky ${isScrolled ? 'scrolled' : ''}`} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem'}}>
+                        <div style={{flex: 1}}>
+                            <h1 className={`font-bold text-white mb-2 transition-all ${isScrolled ? 'text-2xl' : 'text-4xl'}`}>
+                                Dashboard de Ocorrências
+                            </h1>
+                            {!isScrolled && (
+                                <p className="text-blue-100">SESI/SENAI Alagoas - Atualizado em 22/11/2025</p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => {
+                                console.log('🔘 Botão de filtros clicado! Estado atual:', showFilters);
+                                setShowFilters(!showFilters);
+                            }}
+                            className="btn-primary"
+                            style={{display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', flexShrink: 0}}
+                            aria-label={showFilters ? 'Fechar filtros' : 'Abrir filtros'}
+                            aria-expanded={showFilters}
+                        >
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                            <span>Filtros</span>
+                            {activeFiltersCount > 0 && (
+                                <span 
+                                    style={{position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#f97316', color: 'white', fontSize: '0.75rem', borderRadius: '9999px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}
+                                    aria-label={`${activeFiltersCount} filtros ativos`}
+                                >
+                                    {activeFiltersCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Painel de Filtros - Sticky */}
+                    {showFilters && (
+                        <div 
+                            ref={filterRef} 
+                            className={`card p-6 mb-6 shadow-2xl animate-slideDown filters-sticky ${hideFiltersOnScroll ? 'hidden' : ''}`}
+                            role="dialog" 
+                            aria-label="Painel de filtros"
+                            onMouseEnter={() => {
+                                console.log('🖱️ Mouse entrou no painel - cancelando timer');
+                                // Cancelar timeout ao passar mouse sobre o painel
+                                if (filterPanelTimeoutRef.current) {
+                                    clearTimeout(filterPanelTimeoutRef.current);
+                                }
+                                // Mostrar painel se estava escondido
+                                setHideFiltersOnScroll(false);
+                            }}
+                            onMouseLeave={() => {
+                                console.log('🖱️ Mouse saiu do painel - reiniciando timer (2s)');
+                                // Reiniciar timeout ao sair do painel
+                                filterPanelTimeoutRef.current = setTimeout(() => {
+                                    console.log('⏰ Timer após mouse leave expirou!');
+                                    setShowFilters(false);
+                                }, 2000);
+                            }}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold">Filtros</h2>
+                                <div className="flex gap-2">
+                                    {activeFiltersCount > 0 && (
+                                        <button
+                                            onClick={clearFilters}
+                                            className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                            aria-label="Limpar todos os filtros"
+                                        >
+                                            Limpar Filtros
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowFilters(false)}
+                                        className="text-gray-500 hover:text-gray-700 transition-colors"
+                                        aria-label="Fechar painel de filtros"
+                                    >
+                                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                                <div className="filter-group">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">Status</label>
+                                    <select 
+                                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer transition-all"
+                                        value={filters.status}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            console.log('📊 Status selecionado:', e.target.value);
+                                            setFilters({...filters, status: e.target.value});
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="Todos">Todos</option>
+                                        <option value="Concluído">Concluído</option>
+                                        <option value="Em Andamento">Em Andamento</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">Unidade</label>
+                                    <select 
+                                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer transition-all"
+                                        value={filters.unidade}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            console.log('🏢 Unidade selecionada:', e.target.value);
+                                            setFilters({...filters, unidade: e.target.value});
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="Todas">Todas</option>
+                                        <option value="Unidade Sesi Tabuleiro">Unidade Sesi Tabuleiro</option>
+                                        <option value="Unidade Sesi Arapiraca">Unidade Sesi Arapiraca</option>
+                                        <option value="Unidade Sesi Cambona">Unidade Sesi Cambona</option>
+                                        <option value="Unidade Sesi Senai Arapiraca">Unidade Sesi Senai Arapiraca</option>
+                                        <option value="Segurança e Saúde para Indústria">Segurança e Saúde para Indústria</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">Severidade</label>
+                                    <select 
+                                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer transition-all"
+                                        value={filters.severidade}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            console.log('⚠️ Severidade selecionada:', e.target.value);
+                                            setFilters({...filters, severidade: e.target.value});
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="Todas">Todas</option>
+                                        <option value="Circunstância de Risco (Saúde)">Circunstância de Risco (Saúde)</option>
+                                        <option value="Evento com Nenhum Dano (Saúde)">Evento com Nenhum Dano (Saúde)</option>
+                                        <option value="Evento com Dano Leve (Saúde)">Evento com Dano Leve (Saúde)</option>
+                                        <option value="Near Miss (Saúde)">Near Miss (Saúde)</option>
+                                        <option value="Evento com Dano Moderado (Saúde)">Evento com Dano Moderado (Saúde)</option>
+                                        <option value="Leve">Leve</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">Período (Mês/Ano)</label>
+                                    <select 
+                                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer transition-all"
+                                        value={filters.periodo}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            console.log('📅 Período selecionado:', e.target.value);
+                                            setFilters({...filters, periodo: e.target.value});
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="Todos">Todos os períodos</option>
+                                        <option value="2024-06">Junho/2024</option>
+                                        <option value="2024-11">Novembro/2024</option>
+                                        <option value="2025-01">Janeiro/2025</option>
+                                        <option value="2025-02">Fevereiro/2025</option>
+                                        <option value="2025-03">Março/2025</option>
+                                        <option value="2025-04">Abril/2025</option>
+                                        <option value="2025-05">Maio/2025</option>
+                                        <option value="2025-06">Junho/2025</option>
+                                        <option value="2025-07">Julho/2025</option>
+                                        <option value="2025-08">Agosto/2025</option>
+                                        <option value="2025-09">Setembro/2025</option>
+                                        <option value="2025-10">Outubro/2025</option>
+                                        <option value="2025-11">Novembro/2025</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            {/* Botões de Ação e Resumo */}
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                    <div className="flex-1">
+                                        {activeFiltersCount > 0 ? (
+                                            <p className="text-sm text-gray-600">
+                                                <strong>Filtros ativos ({activeFiltersCount}):</strong>{' '}
+                                                {[
+                                                    filters.status !== 'Todos' && `Status: ${filters.status}`,
+                                                    filters.unidade !== 'Todas' && `Unidade: ${filters.unidade.replace('Unidade ', '')}`,
+                                                    filters.severidade !== 'Todas' && `Severidade: ${filters.severidade.replace(' (Saúde)', '')}`,
+                                                    filters.periodo !== 'Todos' && `Período: ${filters.periodo}`
+                                                ].filter(Boolean).join(', ')}
+                                            </p>
+                                        ) : (
+                                            <p className="text-sm text-gray-500">Nenhum filtro aplicado</p>
+                                        )}
+                                    </div>
+                                    {activeFiltersCount > 0 && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                clearFilters();
+                                            }}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        >
+                                            🧹 Limpar Filtros
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Cards de Estatísticas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6" style={{marginTop: isScrolled ? '0.5rem' : '1rem'}}>
+                        <div className="card p-6">
+                            <div className="text-sm text-muted mb-1">Total de Ocorrências</div>
+                            <div className="text-3xl font-bold text-blue-600">{stats.total}</div>
+                        </div>
+                        <div className="card p-6">
+                            <div className="text-sm text-muted mb-1">Concluídas</div>
+                            <div className="text-3xl font-bold text-green-600">{stats.concluidos}</div>
+                        </div>
+                        <div className="card p-6">
+                            <div className="text-sm text-muted mb-1">Em Andamento</div>
+                            <div className="text-3xl font-bold text-orange-600">{stats.emAndamento}</div>
+                        </div>
+                        <div className="card p-6">
+                            <div className="text-sm text-muted mb-1">Taxa de Conclusão</div>
+                            <div className="text-3xl font-bold text-purple-600">{stats.taxaConclusao}%</div>
+                        </div>
+                    </div>
+
+                    {/* Gráficos */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                        {/* Severidade */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4">Ocorrências por Severidade</h3>
+                            {severidadeData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={severidadeData} margin={{ top: 5, right: 20, left: 10, bottom: 80 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            angle={-45} 
+                                            textAnchor="end" 
+                                            height={100}
+                                            tick={{ fontSize: 12 }}
+                                        />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                                            cursor={{ fill: 'rgba(0, 62, 126, 0.1)' }}
+                                        />
+                                        <Bar dataKey="value" fill="#003E7E" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-500">
+                                    Nenhum dado disponível
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Unidades */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4">Top 5 Unidades</h3>
+                            {unidadeData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={unidadeData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={(entry) => `${entry.name}: ${entry.value}`}
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {unidadeData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-500">
+                                    Nenhum dado disponível
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Ocorrências */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4">Tipos de Ocorrência</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={ocorrenciaData} layout="vertical">
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis type="number" />
+                                    <YAxis dataKey="name" type="category" width={150} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" fill="#FF6600" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold mb-4">Evolução Temporal</h3>
+                            {timelineData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={timelineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                                        />
+                                        <Legend />
+                                        <Line 
+                                            type="monotone" 
+                                            dataKey="total" 
+                                            stroke="#00579D" 
+                                            strokeWidth={3}
+                                            dot={{ fill: '#00579D', r: 4 }}
+                                            activeDot={{ r: 6 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-500">
+                                    Nenhum dado disponível
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Processos */}
+                        <div className="card p-6 lg:col-span-2">
+                            <h3 className="text-lg font-semibold mb-4">Processos Mais Afetados</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={processoData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" angle={-15} textAnchor="end" height={80} />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Bar dataKey="value" fill="#22c55e" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Renderizar o app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>

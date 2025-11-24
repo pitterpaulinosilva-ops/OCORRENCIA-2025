@@ -1,0 +1,4231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Ocorrências - SESI/SENAI Alagoas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --sesi-blue: #003E7E;
+            --sesi-red: #E30613;
+            --senai-blue: #00579D;
+            --senai-orange: #FF6600;
+            --white: #FFFFFF;
+            --light-gray: #f8f9fa;
+            --border-gray: #e0e0e0;
+            --success-green: #28a745;
+            --warning-orange: #fd7e14;
+            --text-dark: #2c3e50;
+            --text-muted: #6c757d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--sesi-blue) 0%, var(--senai-blue) 100%);
+            color: var(--white);
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .header-info {
+            text-align: right;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-gray);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        .metric-card {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .metric-card.primary::before {
+            background: linear-gradient(90deg, var(--sesi-blue), var(--senai-blue));
+        }
+
+        .metric-card.success::before {
+            background: var(--success-green);
+        }
+
+        .metric-card.warning::before {
+            background: var(--senai-orange);
+        }
+
+        .metric-card.info::before {
+            background: linear-gradient(90deg, var(--success-green), var(--senai-blue));
+        }
+
+        .metric-value {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--sesi-blue);
+        }
+
+        .metric-label {
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-gray);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--sesi-blue), var(--success-green));
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--sesi-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--senai-orange);
+            border-radius: 2px;
+            margin-right: 12px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 10px;
+        }
+
+        .chart-container.small {
+            height: 350px;
+        }
+
+        .chart-container.large {
+            height: 450px;
+        }
+
+        .chart-card-full {
+            width: 100%;
+            min-height: 400px;
+            margin-bottom: 24px;
+            padding: 24px;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--sesi-blue);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background: var(--senai-blue);
+            transform: scale(1.1);
+        }
+
+        .responsaveis-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .responsavel-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--light-gray);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .responsavel-item:hover {
+            background: #e3f2fd;
+        }
+
+        .responsavel-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--sesi-blue), var(--senai-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .responsavel-name {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .responsavel-count {
+            background: var(--senai-orange);
+            color: var(--white);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .action-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .action-item {
+            text-align: center;
+            padding: 16px;
+            background: var(--light-gray);
+            border-radius: 8px;
+        }
+
+        .action-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .action-item.yes .action-value {
+            color: var(--success-green);
+        }
+
+        .action-item.no .action-value {
+            color: var(--sesi-red);
+        }
+
+        .action-label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .percentage {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        @media (max-width: 1200px) {
+            .chart-container {
+                height: 350px;
+            }
+
+            .chart-container.large {
+                height: 400px;
+            }
+
+            .card-title {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                text-align: center;
+            }
+
+            .header-info {
+                text-align: center;
+                margin-top: 10px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .chart-container.large {
+                height: 350px;
+            }
+
+            .card-title {
+                font-size: 16px;
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .back-to-top {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border-gray);
+            background: var(--white);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--senai-orange);
+            background: #fff3e0;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: var(--text-muted);
+        }
+
+        /* Filters Panel Styles */
+        .filters-panel {
+            background: #f5f5f5;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .filters-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .filters-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--sesi-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .filter-badge {
+            background: var(--senai-orange);
+            color: var(--white);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .filter-badge.hidden {
+            display: none;
+        }
+
+        .filters-toggle {
+            background: none;
+            border: none;
+            color: var(--sesi-blue);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .filters-toggle:hover {
+            background: rgba(0, 62, 126, 0.1);
+        }
+
+        .filters-toggle.collapsed svg {
+            transform: rotate(-90deg);
+        }
+
+        .filters-content {
+            transition: all 0.3s ease;
+        }
+
+        .filters-content.collapsed {
+            display: none;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .filter-select {
+            border: 2px solid var(--border-gray);
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus {
+            border-color: var(--sesi-blue);
+            box-shadow: 0 0 0 3px rgba(0, 62, 126, 0.1);
+        }
+
+        .filter-select.active {
+            border-color: var(--sesi-blue);
+            background-color: rgba(0, 62, 126, 0.05);
+        }
+
+        .filters-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-clear {
+            background: var(--white);
+            color: var(--text-muted);
+            border: 2px solid var(--border-gray);
+        }
+
+        .btn-clear:hover {
+            background: var(--light-gray);
+            border-color: var(--text-muted);
+        }
+
+        .btn-apply {
+            background: var(--sesi-blue);
+            color: var(--white);
+        }
+
+        .btn-apply:hover {
+            background: var(--senai-blue);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .filters-summary {
+            color: var(--text-muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* Multi-select dropdown styles */
+        .multi-select-container {
+            position: relative;
+        }
+
+        .multi-select-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            background: var(--white);
+            padding-right: var(--space-32);
+        }
+
+        .multi-select-trigger:hover {
+            border-color: var(--sesi-blue);
+        }
+
+        .multi-select-trigger[aria-expanded="true"] .multi-select-arrow {
+            transform: rotate(180deg);
+        }
+
+        .multi-select-arrow {
+            transition: transform 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border: 2px solid var(--sesi-blue);
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            margin-top: 4px;
+        }
+
+        .multi-select-dropdown.open {
+            display: block;
+        }
+
+        .multi-select-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-gray);
+            background: var(--light-gray);
+        }
+
+        .multi-select-toggle-all {
+            background: none;
+            border: none;
+            color: var(--sesi-blue);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+        }
+
+        .multi-select-toggle-all:hover {
+            text-decoration: underline;
+        }
+
+        .multi-select-options {
+            padding: 8px 0;
+        }
+
+        .multi-select-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+        }
+
+        .multi-select-option:hover {
+            background: rgba(0, 62, 126, 0.05);
+        }
+
+        .multi-select-option input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.1);
+        }
+
+        .selected-months {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .month-pill {
+            background: var(--sesi-blue);
+            color: var(--white);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .month-pill .remove-month {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: var(--white);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .month-pill .remove-month:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .chart-note {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* Animation for filtered data updates */
+        .card.updating {
+            opacity: 0.7;
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        /* Tab Navigation Styles */
+        .tabs-container {
+            margin-bottom: 20px;
+        }
+
+        .tab-navigation {
+            display: flex;
+            border-bottom: 2px solid var(--border-gray);
+            background: var(--white);
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+
+        .tab-btn {
+            flex: 1;
+            max-width: 200px;
+            padding: 16px 24px;
+            border: none;
+            background: var(--light-gray);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            background: #e3f2fd;
+            color: var(--sesi-blue);
+        }
+
+        .tab-btn.active {
+            background: var(--white);
+            color: var(--sesi-blue);
+            border-bottom: 3px solid var(--senai-orange);
+        }
+
+        .tab-icon {
+            font-size: 18px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Data Table Styles */
+        .data-table-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-gray);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .table-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--sesi-blue);
+            margin: 0;
+        }
+
+        .table-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-secondary {
+            background-color: var(--text-muted);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: var(--white);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-gray);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--sesi-blue);
+            margin: 0;
+        }
+
+        .close {
+            color: var(--text-muted);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close:hover {
+            color: var(--sesi-red);
+        }
+
+        .column-selector {
+            margin-bottom: 20px;
+        }
+
+        .column-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .column-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            background-color: var(--light-gray);
+        }
+
+        .column-item input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .column-item label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: var(--border-gray);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--sesi-blue), var(--senai-blue));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .search-box {
+            position: relative;
+            min-width: 280px;
+        }
+
+        .search-box input {
+            padding-left: 40px;
+            border-radius: 25px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .table-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-summary {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .table-pagination label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-control-sm {
+            padding: 4px 8px;
+            border: 1px solid var(--border-gray);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: var(--white);
+        }
+
+        .data-table th {
+            background: var(--sesi-blue);
+            color: var(--white);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .data-table th:hover {
+            background: var(--senai-blue);
+        }
+
+        .data-table th:last-child {
+            border-right: none;
+        }
+
+        .sort-arrow {
+            margin-left: 4px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
+        .data-table th.sort-asc .sort-arrow::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        .data-table th.sort-desc .sort-arrow::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-gray);
+            border-right: 1px solid var(--border-gray);
+        }
+
+        .data-table td:last-child {
+            border-right: none;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: var(--light-gray);
+        }
+
+        .data-table tbody tr:hover {
+            background: #e3f2fd;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .status-badge.concluido {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-badge.em-andamento {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .fase-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .fase-badge.concluida {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .fase-badge.analisar-causa {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .fase-badge.registrar-acao {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .fase-badge.gerenciar-plano {
+            background: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .fase-badge.avaliar-ocorrencia {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .table-pagination-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .pagination-info {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-numbers {
+            display: flex;
+            gap: 4px;
+        }
+
+        .page-number {
+            padding: 8px 12px;
+            border: 1px solid var(--border-gray);
+            background: var(--white);
+            color: var(--text-dark);
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .page-number:hover {
+            background: var(--light-gray);
+        }
+
+        .page-number.active {
+            background: var(--sesi-blue);
+            color: var(--white);
+            border-color: var(--sesi-blue);
+        }
+
+        .search-highlight {
+            background: #ffeb3b;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .table-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .table-actions {
+                justify-content: space-between;
+            }
+
+            .search-box {
+                min-width: 200px;
+            }
+
+            .table-info {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .table-pagination-bottom {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .pagination-controls {
+                justify-content: center;
+            }
+
+            .tab-btn {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+
+            .tab-icon {
+                font-size: 16px;
+            }
+
+            .data-table {
+                font-size: 12px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <h1>Painel de Ocorrências - SESI/SENAI Alagoas</h1>
+                <div class="header-subtitle">Sistema de Gestão da Qualidade &amp; Segurança</div>
+            </div>
+            <div class="header-info">
+                <div>Última atualização: 22/10/2025 16:00</div>
+                <div>Data atual: Quarta-feira, 22 de Outubro de 2025</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Tab Navigation -->
+        <section class="tabs-container">
+            <div class="tab-navigation">
+                <button class="tab-btn active" id="dashboardTab" data-tab="dashboard">
+                    <span class="tab-icon">📊</span>
+                    <span>Dashboard</span>
+                </button>
+                <button class="tab-btn" id="dataTab" data-tab="data">
+                    <span class="tab-icon">📋</span>
+                    <span>Dados Detalhados</span>
+                </button>
+            </div>
+        </section>
+        <!-- Filters Panel -->
+        <section class="filters-panel" id="filtersPanel">
+            <div class="filters-header">
+                <h3 class="filters-title">
+                    <span>Filtros</span>
+                    <span class="filter-badge" id="filterBadge">0</span>
+                </h3>
+                <button class="filters-toggle" id="filtersToggle" aria-label="Expandir/Recolher Filtros">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="filters-content" id="filtersContent">
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label class="filter-label" for="statusFilter">Status</label>
+                        <select class="form-control filter-select" id="statusFilter">
+                            <option value="Todos">Todos</option>
+                            <option value="Concluído">Concluído</option>
+                            <option value="Em Andamento">Em Andamento</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="unidadeFilter">Unidade</label>
+                        <select class="form-control filter-select" id="unidadeFilter">
+                            <option value="Todas">Todas</option>
+                            <option value="Unidade Sesi Tabuleiro">Unidade Sesi Tabuleiro</option>
+                            <option value="Unidade Sesi Arapiraca">Unidade Sesi Arapiraca</option>
+                            <option value="Unidade Sesi Cambona">Unidade Sesi Cambona</option>
+                            <option value="Unidade Sesi Senai Arapiraca">Unidade Sesi Senai Arapiraca</option>
+                            <option value="Segurança e Saúde para Indústria">Segurança e Saúde para Indústria</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="severidadeFilter">Severidade</label>
+                        <select class="form-control filter-select" id="severidadeFilter">
+                            <option value="Todas">Todas</option>
+                            <option value="Circunstância de Risco (Saúde)">Circunstância de Risco (Saúde)</option>
+                            <option value="Evento com Nenhum Dano (Saúde)">Evento com Nenhum Dano (Saúde)</option>
+                            <option value="Evento com Dano Leve (Saúde)">Evento com Dano Leve (Saúde)</option>
+                            <option value="Near Miss (Saúde)">Near Miss (Saúde)</option>
+                            <option value="Evento com Dano Moderado (Saúde)">Evento com Dano Moderado (Saúde)</option>
+                            <option value="Leve">Leve</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="periodoFilter">Período (Mês/Ano)</label>
+                        <div class="multi-select-container">
+                            <button type="button" class="form-control filter-select multi-select-trigger" id="periodoFilter" aria-expanded="false">
+                                <span class="multi-select-text">Todos os períodos</span>
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16" class="multi-select-arrow">
+                                    <path d="M8 13.1L2.5 7.6l1.4-1.4L8 10.3l4.1-4.1 1.4 1.4L8 13.1z"/>
+                                </svg>
+                            </button>
+                            <div class="multi-select-dropdown" id="periodoDropdown">
+                                <div class="multi-select-header">
+                                    <button type="button" class="multi-select-toggle-all" id="toggleAllPeriodos">Selecionar Todos</button>
+                                </div>
+                                <div class="multi-select-options">
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2024-06" class="periodo-checkbox">
+                                        <span>Junho/2024</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2024-11" class="periodo-checkbox">
+                                        <span>Novembro/2024</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-01" class="periodo-checkbox">
+                                        <span>Janeiro/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-02" class="periodo-checkbox">
+                                        <span>Fevereiro/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-03" class="periodo-checkbox">
+                                        <span>Março/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-04" class="periodo-checkbox">
+                                        <span>Abril/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-05" class="periodo-checkbox">
+                                        <span>Maio/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-06" class="periodo-checkbox">
+                                        <span>Junho/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-07" class="periodo-checkbox">
+                                        <span>Julho/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-08" class="periodo-checkbox">
+                                        <span>Agosto/2025</span>
+                                    </label>
+                                    <label class="multi-select-option">
+                                        <input type="checkbox" value="2025-10" class="periodo-checkbox">
+                                        <span>Outubro/2025</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="selected-months" id="selectedMonths"></div>
+                    </div>
+                </div>
+                <div class="filters-actions">
+                    <button class="btn btn-clear" id="clearFilters">Limpar Filtros</button>
+                    <button class="btn btn-apply" id="applyFilters">Aplicar Filtros</button>
+                </div>
+                <div class="filters-summary" id="filtersSummary">
+                    Exibindo <strong>50</strong> de 50 ocorrências
+                </div>
+            </div>
+        </section>
+
+        <section class="metrics-grid">
+            <div class="card metric-card primary">
+                <div class="metric-value" id="totalMetric">50</div>
+                <div class="metric-label">Total de Ocorrências</div>
+            </div>
+            <div class="card metric-card success">
+                <div class="metric-value" id="concluidasMetric">33</div>
+                <div class="metric-label">Concluídas</div>
+            </div>
+            <div class="card metric-card warning">
+                <div class="metric-value" id="andamentoMetric">17</div>
+                <div class="metric-label">Em Andamento</div>
+            </div>
+            <div class="card metric-card info">
+                <div class="metric-value" id="taxaMetric">66%</div>
+                <div class="metric-label">Taxa de Conclusão</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 66%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent" class="tab-content active">
+            <section class="main-grid">
+            <div class="card">
+                <h3 class="card-title">Status das Ocorrências</h3>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Severidade/Gravidade</h3>
+                <div class="chart-container">
+                    <canvas id="severidadeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Abertura de Ocorrências por Mês</h3>
+                <div class="chart-container large">
+                    <canvas id="aberturaChart"></canvas>
+                </div>
+                <div class="chart-note">Pico de aberturas em Julho/2025 com 13 casos, dos quais 10 ainda em andamento</div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Classificação OMS por Mês</h3>
+                <div class="chart-container">
+                    <canvas id="tipoIncidenteOmsChart"></canvas>
+                </div>
+                <div class="chart-note">* 96% dos casos não foram com a classificação OMS</div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">
+                    <span style="color: var(--sesi-blue);">📋 Unidades Notificadas</span>
+                    <small style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-left: 8px;">Onde ocorreram as ocorrências</small>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="unidadesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">
+                    <span style="color: var(--senai-orange);">📤 Unidades Notificadoras</span>
+                    <small style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-left: 8px;">Quem reportou as ocorrências</small>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="notificadorasChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Tipos de Ocorrência</h3>
+                <div class="chart-container">
+                    <canvas id="tiposChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Timeline Mensal</h3>
+                <div class="chart-container large">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Fase da Ocorrência</h3>
+                <div class="chart-container">
+                    <canvas id="faseChart"></canvas>
+                </div>
+                <div class="chart-note">70% das ocorrências em andamento estão na fase de Análise de Causa e Plano de Ação</div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Origem da Notificação</h3>
+                <div class="chart-container">
+                    <canvas id="origemChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Processos Envolvidos</h3>
+                <div class="chart-container">
+                    <canvas id="processosChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Top Responsáveis</h3>
+                <div class="responsaveis-list">
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">FS</div>
+                            <div class="responsavel-name">fania.silva</div>
+                        </div>
+                        <div class="responsavel-count">24</div>
+                    </div>
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">MS</div>
+                            <div class="responsavel-name">mylena.soares</div>
+                        </div>
+                        <div class="responsavel-count">13</div>
+                    </div>
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">LC</div>
+                            <div class="responsavel-name">larize.costa</div>
+                        </div>
+                        <div class="responsavel-count">5</div>
+                    </div>
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">CA</div>
+                            <div class="responsavel-name">carolina.albuquerque</div>
+                        </div>
+                        <div class="responsavel-count">2</div>
+                    </div>
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">JA</div>
+                            <div class="responsavel-name">jessyca.alves</div>
+                        </div>
+                        <div class="responsavel-count">2</div>
+                    </div>
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">SF</div>
+                            <div class="responsavel-name">sarah.ferro</div>
+                        </div>
+                        <div class="responsavel-count">2</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="card-title">Ações Imediatas</h3>
+            <div class="action-metrics">
+                <div class="action-item yes">
+                    <div class="action-value">43</div>
+                    <div class="action-label">Com Ação Imediata</div>
+                    <div class="percentage">86%</div>
+                </div>
+                <div class="action-item no">
+                    <div class="action-value">7</div>
+                    <div class="action-label">Sem Ação Imediata</div>
+                    <div class="percentage">14%</div>
+                </div>
+            </div>
+        </section>
+        </div>
+        
+        <!-- Data Table Content -->
+        <div id="dataContent" class="tab-content">
+            <section class="data-table-section">
+                <div class="table-header">
+                    <h3 class="table-title">Dados Completos das Ocorrências</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="tableSearch" placeholder="Buscar em todos os campos..." class="form-control">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                        <div class="action-buttons">
+                            <input type="file" id="importExcelInput" accept=".xlsx,.xls" style="display: none;">
+                            <button class="btn btn-secondary" id="importBtn">
+                                <span>📤</span> Importar Excel
+                            </button>
+                            <button class="btn btn-primary" id="exportBtn">
+                                <span>📥</span> Exportar Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-info">
+                    <div class="table-summary" id="tableSummary">Exibindo 50 de 50 registros</div>
+                    <div class="table-pagination">
+                        <label>Mostrar 
+                            <select id="rowsPerPage" class="form-control-sm">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="-1">Todos</option>
+                            </select>
+                         registros</label>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="codigo">Código <span class="sort-arrow"></span></th>
+                                <th data-sort="ocorrencia">Ocorrência <span class="sort-arrow"></span></th>
+                                <th data-sort="data">Data <span class="sort-arrow"></span></th>
+                                <th data-sort="notificadora">Notificadora <span class="sort-arrow"></span></th>
+                                <th data-sort="notificada">Notificada <span class="sort-arrow"></span></th>
+                                <th data-sort="origem">Origem <span class="sort-arrow"></span></th>
+                                <th data-sort="tipo_ocorrencia">Tipo de Ocorrência <span class="sort-arrow"></span></th>
+                                <th data-sort="severidade">Severidade/Gravidade <span class="sort-arrow"></span></th>
+                                <th data-sort="tipo_incidente_oms">Tipo de Incidente - OMS <span class="sort-arrow"></span></th>
+                                <th data-sort="status">Status <span class="sort-arrow"></span></th>
+                                <th data-sort="acao_imediata">Ação Imediata <span class="sort-arrow"></span></th>
+                                <th data-sort="responsavel">Responsável <span class="sort-arrow"></span></th>
+                                <th data-sort="fase">Fase da Ocorrência <span class="sort-arrow"></span></th>
+                                <th data-sort="processo">Processo <span class="sort-arrow"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="table-pagination-bottom">
+                    <div class="pagination-info" id="paginationInfo">Mostrando 1 até 25 de 50 registros</div>
+                    <div class="pagination-controls">
+                        <button class="btn btn-outline" id="prevPage" disabled>Anterior</button>
+                        <div class="page-numbers" id="pageNumbers"></div>
+                        <button class="btn btn-outline" id="nextPage">Próximo</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Exportar para Excel</h2>
+                <button class="close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="column-selector">
+                    <h3>Selecione as colunas para exportar:</h3>
+                    <div class="column-grid" id="columnGrid">
+                        <!-- Column checkboxes will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                <div class="status-message" id="statusMessage"></div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn btn-secondary" id="cancelExport">Cancelar</button>
+                    <button class="btn btn-primary" id="confirmExport">Exportar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button class="back-to-top" id="backToTop" aria-label="Voltar ao topo">
+        ↑
+    </button>
+
+    <script>
+        // Color palettes based on SESI/SENAI branding
+        const colors = {
+            primary: ['#003E7E', '#00579D', '#FF6600', '#E30613'],
+            chart: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5', '#5D878F', '#DB4545', '#D2BA4C', '#964325', '#944454', '#13343B'],
+            status: ['#28a745', '#fd7e14'],
+            severity: ['#ffc107', '#28a745', '#fd7e14', '#6c757d', '#007bff', '#f8b500', '#dc3545'],
+            origem: {
+                'Notificação Clínicas Sesi': '#003E7E',
+                'Auditoria Interna': '#E30613', 
+                'Monitoramento Interno': '#FF6600',
+                'Monitoramento de Processos': '#28a745'
+            },
+            gradient: {
+                blue: 'linear-gradient(45deg, #003E7E, #00579D)',
+                orange: 'linear-gradient(45deg, #FF6600, #fd7e14)'
+            }
+        };
+
+        // Chart configuration defaults
+        Chart.defaults.font.family = "'Segoe UI', 'Roboto', sans-serif";
+        Chart.defaults.font.size = 14;
+        Chart.defaults.color = '#2c3e50';
+        
+        // Back to top functionality
+        function initializeBackToTop() {
+            const backToTop = document.getElementById('backToTop');
+            
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    backToTop.classList.add('visible');
+                } else {
+                    backToTop.classList.remove('visible');
+                }
+            });
+            
+            backToTop.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
+
+        // Animation function for counting numbers
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                element.textContent = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // Complete incidents dataset - all 50 incidents with phase information
+        let allIncidents = [
+            {codigo: "233", data: "13/06/2024", mes_ano: "2024-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "SP10.2.1.Gerenciar Serviços de Saúde Complementar", responsavel: "carolina.albuquerque", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Não", notificadora: "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)", fase: "Concluída"},
+            {codigo: "252", data: "13/11/2024", mes_ano: "2024-11", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "257", data: "21/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Recoleta de exames laboratoriais", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "259", data: "23/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "260", data: "28/01/2025", mes_ano: "2025-01", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "263", data: "19/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "266", data: "24/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "267", data: "26/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Near Miss (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Presidência", fase: "Concluída"},
+            {codigo: "268", data: "27/02/2025", mes_ano: "2025-02", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Recoleta de exames laboratoriais", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "272", data: "11/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "273", data: "13/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Near Miss (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "274", data: "10/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Análise de Ocorrência", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "276", data: "14/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "carolina.albuquerque", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "280", data: "20/03/2025", mes_ano: "2025-03", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "286", data: "07/04/2025", mes_ano: "2025-04", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Leve", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "jessika.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "289", data: "08/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"},
+            {codigo: "292", data: "15/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "293", data: "16/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "fania.silva", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "298", data: "29/04/2025", mes_ano: "2025-04", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"},
+            {codigo: "299", data: "02/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Senai Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Senai Arapiraca", fase: "Concluída"}
+        ];
+
+        // Add remaining incidents data - continuing with real data
+        const additionalIncidents = [
+            {codigo: "301", data: "07/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "mylena.soares", ocorrencia: "Queda", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "302", data: "07/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "305", data: "08/05/2025", mes_ano: "2025-05", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "306", data: "08/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Queda", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "307", data: "12/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Segurança e Saúde para Indústria", fase: "Concluída"},
+            {codigo: "315", data: "23/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "317", data: "29/05/2025", mes_ano: "2025-05", status: "Concluído", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Dados inconsistentes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "319", data: "02/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "322", data: "06/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Concluída"},
+            {codigo: "325", data: "11/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Não", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "326", data: "11/06/2025", mes_ano: "2025-06", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento Interno", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Não", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "336", data: "01/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Cambona", fase: "Concluída"},
+            {codigo: "337", data: "01/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "338", data: "03/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Registrar Ação Imediata"},
+            {codigo: "341", data: "07/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "343", data: "07/07/2025", mes_ano: "2025-07", status: "Concluído", notificada: "Unidade Sesi Arapiraca", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "mylena.soares", ocorrencia: "Cadastro incorreto ou incompleto", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Concluída"},
+            {codigo: "344", data: "07/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "345", data: "08/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "larize.costa", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "346", data: "08/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Não Informado", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Acesso do Paciente/ Cliente", responsavel: "mylena.soares", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "347", data: "10/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Auditoria Interna", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "larize.costa", ocorrencia: "Divergência ou desatualização dos dados de cadastro de clientes", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Registrar Ação Imediata"},
+            {codigo: "350", data: "10/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar ASO", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "351", data: "09/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Atraso na liberação de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "361", data: "17/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Falha no registro em prontuário (incompleto e/ou ausente)", acao_imediata: "Não", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "363", data: "22/07/2025", mes_ano: "2025-07", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Preparo errado do medicamento", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "374", data: "01/08/2025", mes_ano: "2025-08", status: "Em Andamento", notificada: "Unidade Sesi Tabuleiro", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Identificação Errada do Paciente", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Registrar Ação Imediata"},
+            {codigo: "383", data: "07/08/2025", mes_ano: "2025-08", status: "Concluído", notificada: "Unidade Sesi Cambona", severidade: "Evento com Dano Leve (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "fania.silva", ocorrencia: "Atraso na liberação de laudos", acao_imediata: "Sim", notificadora: "Segurança e Saúde para Indústria", fase: "Concluída"},
+            {codigo: "384", data: "01/08/2025", mes_ano: "2025-08", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Evento com Dano Moderado (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "sarah.ferro", ocorrencia: "Incidente/evento adverso ocorrido no serviço de saúde", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Gerenciar Plano de Ação"},
+            {codigo: "388", data: "28/08/2025", mes_ano: "2025-08", status: "Em Andamento", notificada: "Segurança e Saúde para Indústria", severidade: "Evento com Nenhum Dano (Saúde)", tipo_incidente_oms: "Não Classificado", origem: "Monitoramento de Processos", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "isabella.vieira", ocorrencia: "Outros", acao_imediata: "Sim", notificadora: "Unidade Sesi Tabuleiro", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "404", data: "20/10/2025", mes_ano: "2025-10", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "jessyca.alves", ocorrencia: "Retificação e/ou troca de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Analisar Causa e Fazer Plano de Ação"},
+            {codigo: "405", data: "20/10/2025", mes_ano: "2025-10", status: "Em Andamento", notificada: "Unidade Sesi Arapiraca", severidade: "Circunstância de Risco (Saúde)", tipo_incidente_oms: "Administração clínica", origem: "Notificação Clínicas Sesi", processo: "Administrar Consultas/ Exames de Saúde", responsavel: "jessyca.alves", ocorrencia: "Retificação e/ou troca de laudos", acao_imediata: "Sim", notificadora: "Unidade Sesi Arapiraca", fase: "Avaliar Ocorrência"}
+        ];
+
+        allIncidents = allIncidents.concat(additionalIncidents);
+        
+        function generateRemainingIncidents() {
+            // Data is now complete - no need to generate additional incidents
+            return;
+        }
+        
+        // No need to generate - we now have complete data
+        // generateRemainingIncidents();
+        
+        // Configuração de ambiente
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        // Função de log condicional
+        function debugLog(...args) {
+            if (isDevelopment) {
+                console.log(...args);
+            }
+        }
+        
+        function debugWarn(...args) {
+            if (isDevelopment) {
+                console.warn(...args);
+            }
+        }
+        
+        function debugError(...args) {
+            if (isDevelopment) {
+                console.error(...args);
+            }
+        }
+
+        debugLog('Complete dataset loaded with', allIncidents.length, 'incidents');
+
+        // Unidades Notificadoras data (who reports incidents)
+        const unidadesNotificadorasData = {
+            "2024-06": { "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 1, "Unidade Sesi Tabuleiro": 0, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Presidência": 0 },
+            "2024-11": { "Unidade Sesi Tabuleiro": 1, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-01": { "Unidade Sesi Tabuleiro": 3, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-02": { "Unidade Sesi Tabuleiro": 3, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 1 },
+            "2025-03": { "Unidade Sesi Tabuleiro": 5, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-04": { "Unidade Sesi Tabuleiro": 0, "Unidade Sesi Arapiraca": 1, "Unidade Sesi Cambona": 1, "Unidade Sesi Senai Arapiraca": 3, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-05": { "Unidade Sesi Tabuleiro": 5, "Unidade Sesi Arapiraca": 0, "Unidade Sesi Cambona": 1, "Unidade Sesi Senai Arapiraca": 1, "Segurança e Saúde para Indústria": 1, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-06": { "Unidade Sesi Tabuleiro": 1, "Unidade Sesi Arapiraca": 1, "Unidade Sesi Cambona": 2, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-07": { "Unidade Sesi Tabuleiro": 10, "Unidade Sesi Arapiraca": 2, "Unidade Sesi Cambona": 1, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-08": { "Unidade Sesi Tabuleiro": 2, "Unidade Sesi Arapiraca": 1, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 1, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 },
+            "2025-10": { "Unidade Sesi Tabuleiro": 0, "Unidade Sesi Arapiraca": 2, "Unidade Sesi Cambona": 0, "Unidade Sesi Senai Arapiraca": 0, "Segurança e Saúde para Indústria": 0, "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0, "Presidência": 0 }
+        };
+
+        const totaisNotificadoras = {
+            "Unidade Sesi Tabuleiro": 30,
+            "Unidade Sesi Arapiraca": 7,
+            "Unidade Sesi Cambona": 5,
+            "Unidade Sesi Senai Arapiraca": 4,
+            "Segurança e Saúde para Indústria": 2,
+            "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 1,
+            "Presidência": 1
+        };
+
+        // Available months for multi-select filter
+        const availableMonths = [
+            { valor: '2024-06', label: 'Junho/2024' },
+            { valor: '2024-11', label: 'Novembro/2024' },
+            { valor: '2025-01', label: 'Janeiro/2025' },
+            { valor: '2025-02', label: 'Fevereiro/2025' },
+            { valor: '2025-03', label: 'Março/2025' },
+            { valor: '2025-04', label: 'Abril/2025' },
+            { valor: '2025-05', label: 'Maio/2025' },
+            { valor: '2025-06', label: 'Junho/2025' },
+            { valor: '2025-07', label: 'Julho/2025' },
+            { valor: '2025-08', label: 'Agosto/2025' },
+            { valor: '2025-10', label: 'Outubro/2025' }
+        ];
+
+        // Global data store for filtering
+        let originalData = {
+            resumo_geral: {
+                total_ocorrencias: 50,
+                concluidas: 33,
+                em_andamento: 17,
+                taxa_conclusao: 66.0
+            },
+            por_status: {
+                "Concluído": 33,
+                "Em Andamento": 17
+            },
+            por_severidade: {
+                "Circunstância de Risco (Saúde)": 27,
+                "Evento com Nenhum Dano (Saúde)": 9,
+                "Evento com Dano Leve (Saúde)": 7,
+                "Não Informado": 3,
+                "Near Miss (Saúde)": 2,
+                "Leve": 1,
+                "Evento com Dano Moderado (Saúde)": 1
+            },
+            por_unidade: {
+                "Unidade Sesi Tabuleiro": 28,
+                "Unidade Sesi Arapiraca": 11,
+                "Unidade Sesi Cambona": 9,
+                "Unidade Sesi Senai Arapiraca": 1,
+                "Segurança e Saúde para Indústria": 1
+            },
+            por_tipo_ocorrencia: {
+                "Incidente/evento adverso ocorrido no serviço de saúde": 15,
+                "Identificação Errada do Paciente": 9,
+                "Queda": 6,
+                "Cadastro incorreto ou incompleto": 5,
+                "Divergência ou desatualização dos dados de cadastro": 4,
+                "Atraso na liberação de laudos": 2,
+                "Recoleta de exames laboratoriais": 2,
+                "Retificação e/ou troca de laudos": 2,
+                "Outros": 5
+            },
+            tipo_incidente_oms_mensal: {
+                "2024-06": { "Não Classificado": 1, "Administração clínica": 0 },
+                "2024-11": { "Não Classificado": 1, "Administração clínica": 0 },
+                "2025-01": { "Não Classificado": 3, "Administração clínica": 0 },
+                "2025-02": { "Não Classificado": 4, "Administração clínica": 0 },
+                "2025-03": { "Não Classificado": 5, "Administração clínica": 0 },
+                "2025-04": { "Não Classificado": 5, "Administração clínica": 0 },
+                "2025-05": { "Não Classificado": 8, "Administração clínica": 0 },
+                "2025-06": { "Não Classificado": 4, "Administração clínica": 0 },
+                "2025-07": { "Não Classificado": 13, "Administração clínica": 0 },
+                "2025-08": { "Não Classificado": 4, "Administração clínica": 0 },
+                "2025-10": { "Não Classificado": 0, "Administração clínica": 2 }
+            },
+            por_tipo_incidente_oms: {
+                "Não Classificado": 48,
+                "Administração clínica": 2
+            },
+            por_origem: {
+                "Notificação Clínicas Sesi": 31,
+                "Auditoria Interna": 7,
+                "Monitoramento Interno": 7,
+                "Monitoramento de Processos": 5
+            },
+            por_processo: {
+                "Administrar Consultas/ Exames de Saúde": 36,
+                "Administrar Acesso do Paciente/ Cliente": 12,
+                "SP10.2.1.Gerenciar Serviços de Saúde Complementar": 1,
+                "Administrar ASO": 1
+            },
+            timeline_mensal: {
+                "2024-06": 1,
+                "2024-11": 1,
+                "2025-01": 3,
+                "2025-02": 4,
+                "2025-03": 5,
+                "2025-04": 5,
+                "2025-05": 8,
+                "2025-06": 4,
+                "2025-07": 13,
+                "2025-08": 4,
+                "2025-10": 2
+            },
+            top_responsaveis: {
+                "fania.silva": 24,
+                "mylena.soares": 13,
+                "larize.costa": 5,
+                "carolina.albuquerque": 2,
+                "jessyca.alves": 2,
+                "sarah.ferro": 2
+            },
+            acao_imediata: {
+                "Sim": 43,
+                "Não": 7
+            }
+        };
+
+        // Add monthly opening data and fase data to original data structure
+        originalData.abertura_por_mes = {
+            meses: ['2024-06', '2024-11', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-10'],
+            total: [1, 1, 3, 4, 5, 5, 8, 4, 13, 4, 2],
+            concluidas: [1, 1, 3, 4, 5, 4, 7, 4, 3, 1, 0],
+            em_andamento: [0, 0, 0, 0, 0, 1, 1, 0, 10, 3, 2]
+        };
+        
+        originalData.por_fase = {
+            "Concluída": 33,
+            "Analisar Causa e Fazer Plano de Ação": 12,
+            "Registrar Ação Imediata": 3,
+            "Gerenciar Plano de Ação": 1,
+            "Avaliar Ocorrência": 1
+        };
+
+        let currentData = JSON.parse(JSON.stringify(originalData));
+        let charts = {};
+        let activeFilters = 0;
+
+        // Filter state
+        let filterState = {
+            status: 'Todos',
+            unidade: 'Todas',
+            severidade: 'Todas',
+            periodo: [] // Array of selected months
+        };
+
+        // Initialize charts when page loads
+        window.addEventListener('load', function() {
+            // Initialize current data from original data
+            currentData = JSON.parse(JSON.stringify(originalData));
+            
+            debugLog('Dashboard initialized with', allIncidents.length, 'incidents');
+            
+            // Initialize back to top button
+            initializeBackToTop();
+            
+            // Animate metric values
+            const metricValues = document.querySelectorAll('.metric-value');
+            metricValues.forEach((el, index) => {
+                const finalValue = parseInt(el.textContent.replace('%', ''));
+                el.textContent = '0';
+                setTimeout(() => {
+                    animateValue(el, 0, finalValue, 1500);
+                    if (el.id === 'taxaMetric') {
+                        // Add % back for tax rate after animation
+                        setTimeout(() => {
+                            el.textContent += '%';
+                        }, 1500);
+                    }
+                }, index * 200);
+            });
+
+            // Status Chart (Donut)
+            charts.statusChart = new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Concluído', 'Em Andamento'],
+                    datasets: [{
+                        data: [33, 17],
+                        backgroundColor: colors.status,
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        cutout: '55%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 25,
+                                usePointStyle: true,
+                                font: {
+                                    size: 16,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const percentage = ((context.raw / 50) * 100).toFixed(1);
+                                    return context.label + ': ' + context.raw + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        arc: {
+                            borderWidth: 3
+                        }
+                    }
+                }
+            });
+
+            // Classificação OMS por Mês Chart (Stacked Bar)
+            const omsMonthlyLabels = ['Jun/24', 'Nov/24', 'Jan/25', 'Fev/25', 'Mar/25', 'Abr/25', 'Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Out/25'];
+            const omsMonthlyKeys = ['2024-06', '2024-11', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-10'];
+            
+            const naoClassificadoData = omsMonthlyKeys.map(key => originalData.tipo_incidente_oms_mensal[key]['Não Classificado']);
+            const administracaoData = omsMonthlyKeys.map(key => originalData.tipo_incidente_oms_mensal[key]['Administração clínica']);
+            
+            charts.tipoIncidenteOmsChart = new Chart(document.getElementById('tipoIncidenteOmsChart'), {
+                type: 'bar',
+                data: {
+                    labels: omsMonthlyLabels,
+                    datasets: [
+                        {
+                            label: 'Não Classificado',
+                            data: naoClassificadoData,
+                            backgroundColor: '#9ca3af',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        },
+                        {
+                            label: 'Administração clínica',
+                            data: administracaoData,
+                            backgroundColor: '#003E7E',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 25,
+                                usePointStyle: true,
+                                font: {
+                                    size: 15,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Initialize filter functionality
+            initializeFilters();
+            initializeMultiSelectPeriod();
+            
+            // Initialize tab functionality
+            initializeTabs();
+            
+            // Initialize data table
+            initializeDataTable();
+
+            // Severidade Chart (Horizontal Bar)
+            charts.severidadeChart = new Chart(document.getElementById('severidadeChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Circunst. Risco', 'Nenhum Dano', 'Dano Leve', 'Não Informado', 'Near Miss', 'Leve', 'Dano Moderado'],
+                    datasets: [{
+                        data: [27, 9, 7, 3, 2, 1, 1],
+                        backgroundColor: colors.severity,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Unidades Chart (Horizontal Bar)
+            charts.unidadesChart = new Chart(document.getElementById('unidadesChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Sesi Tabuleiro', 'Sesi Arapiraca', 'Sesi Cambona', 'Sesi Senai Arapiraca', 'Seg. Saúde Indústria'],
+                    datasets: [{
+                        data: [28, 11, 9, 1, 1],
+                        backgroundColor: ['#003E7E', '#1a5490', '#336ba3', '#4d82b6', '#6699c9'],
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#003E7E',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Tipos Chart (Horizontal Bar for better readability)
+            charts.tiposChart = new Chart(document.getElementById('tiposChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Incidente/evento', 'Ident. Errada', 'Queda', 'Cadastro incorreto', 'Divergência dados', 'Atraso laudos', 'Recoleta exames', 'Retif./troca laudos', 'Outros'],
+                    datasets: [{
+                        data: [15, 9, 6, 5, 4, 2, 2, 2, 5],
+                        backgroundColor: colors.chart,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Timeline Chart (Line with Area)
+            charts.timelineChart = new Chart(document.getElementById('timelineChart'), {
+                type: 'line',
+                data: {
+                    labels: ['Jun/24', 'Nov/24', 'Jan/25', 'Fev/25', 'Mar/25', 'Abr/25', 'Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Out/25'],
+                    datasets: [{
+                        label: 'Ocorrências por Mês',
+                        data: [1, 1, 3, 4, 5, 5, 8, 4, 13, 4, 2],
+                        backgroundColor: 'rgba(0, 62, 126, 0.15)',
+                        borderColor: '#003E7E',
+                        borderWidth: 4,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#003E7E',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Origem Chart (Donut) - Updated with distinct colors
+            charts.origemChart = new Chart(document.getElementById('origemChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Notif. Clínicas Sesi', 'Auditoria Interna', 'Monitor. Interno', 'Monitor. Processos'],
+                    datasets: [{
+                        data: [31, 7, 7, 5],
+                        backgroundColor: ['#003E7E', '#E30613', '#FF6600', '#28a745'],
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                        cutout: '55%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 14,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const percentage = ((context.raw / 50) * 100).toFixed(1);
+                                    return context.label + ': ' + context.raw + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        arc: {
+                            borderWidth: 3
+                        }
+                    }
+                }
+            });
+
+            // Processos Chart (Horizontal Bar)
+            charts.processosChart = new Chart(document.getElementById('processosChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Admin. Consultas/Exames', 'Admin. Acesso Paciente', 'Gerenciar Serv. Saúde', 'Administrar ASO'],
+                    datasets: [{
+                        data: [36, 12, 1, 1],
+                        backgroundColor: ['#FF6600', '#ff8533', '#ffad66', '#ffc999'],
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Notificadoras Chart (Horizontal Bar with warm colors)
+            charts.notificadorasChart = new Chart(document.getElementById('notificadorasChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Sesi Tabuleiro', 'Sesi Arapiraca', 'Sesi Cambona', 'Sesi Senai Arapiraca', 'Seg. Saúde Indústria', 'Seg. Saúde Trabalho (antigo)', 'Presidência'],
+                    datasets: [{
+                        data: [30, 7, 5, 4, 2, 1, 1],
+                        backgroundColor: ['#ff6600', '#ff8833', '#ffaa55', '#ff9900', '#cc5500', '#cc7700', '#ff4444'],
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Unidade Notificadora';
+                                },
+                                label: function(context) {
+                                    return context.label + ': ' + context.raw + ' relatórios';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Fase da Ocorrência Chart (Horizontal Bar)
+            charts.faseChart = new Chart(document.getElementById('faseChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Concluída', 'Analisar Causa', 'Ação Imediata', 'Gerenciar Plano', 'Avaliar Ocorrência'],
+                    datasets: [{
+                        data: [33, 12, 3, 1, 1],
+                        backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'],
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const percentage = ((context.raw / 50) * 100).toFixed(1);
+                                    return context.label + ': ' + context.raw + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Abertura de Ocorrências por Mês Chart (Stacked Bar)
+            const aberturaLabels = ['Jun/24', 'Nov/24', 'Jan/25', 'Fev/25', 'Mar/25', 'Abr/25', 'Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Out/25'];
+            
+            charts.aberturaChart = new Chart(document.getElementById('aberturaChart'), {
+                type: 'bar',
+                data: {
+                    labels: aberturaLabels,
+                    datasets: [
+                        {
+                            label: 'Concluídas',
+                            data: originalData.abertura_por_mes.concluidas,
+                            backgroundColor: '#22c55e',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        },
+                        {
+                            label: 'Em Andamento', 
+                            data: originalData.abertura_por_mes.em_andamento,
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 25,
+                                usePointStyle: true,
+                                font: {
+                                    size: 15,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                },
+                                afterLabel: function(context) {
+                                    if (context.datasetIndex === 1) {
+                                        // Show total on the last dataset (Em Andamento)
+                                        const total = originalData.abertura_por_mes.total[context.dataIndex];
+                                        return 'Total: ' + total;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        // Filter functionality
+        function initializeFilters() {
+            const filtersToggle = document.getElementById('filtersToggle');
+            const filtersContent = document.getElementById('filtersContent');
+            const clearFilters = document.getElementById('clearFilters');
+            const applyFilters = document.getElementById('applyFilters');
+            const filterSelects = document.querySelectorAll('.filter-select');
+
+            // Toggle filters panel
+            filtersToggle.addEventListener('click', function() {
+                const isCollapsed = filtersContent.classList.contains('collapsed');
+                if (isCollapsed) {
+                    filtersContent.classList.remove('collapsed');
+                    filtersToggle.classList.remove('collapsed');
+                } else {
+                    filtersContent.classList.add('collapsed');
+                    filtersToggle.classList.add('collapsed');
+                }
+            });
+
+            // Filter change handlers
+            filterSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    const filterId = this.id.replace('Filter', '');
+                    filterState[filterId] = this.value;
+                    
+                    // Visual feedback
+                    if (this.value !== getDefaultValue(filterId)) {
+                        this.classList.add('active');
+                    } else {
+                        this.classList.remove('active');
+                    }
+                    
+                    updateActiveFiltersCount();
+                    applyFiltersToData();
+                });
+            });
+
+            // Clear filters
+            clearFilters.addEventListener('click', function() {
+                filterState = {
+                    status: 'Todos',
+                    unidade: 'Todas',
+                    severidade: 'Todas',
+                    periodo: []
+                };
+                
+                // Clear regular select filters
+                filterSelects.forEach(select => {
+                    if (select.tagName === 'SELECT') {
+                        const filterId = select.id.replace('Filter', '');
+                        select.value = getDefaultValue(filterId);
+                        select.classList.remove('active');
+                    }
+                });
+                
+                // Clear multi-select period filter
+                document.querySelectorAll('.periodo-checkbox').forEach(cb => cb.checked = false);
+                document.querySelector('.multi-select-text').textContent = 'Todos os períodos';
+                document.getElementById('selectedMonths').innerHTML = '';
+                document.getElementById('periodoFilter').classList.remove('active');
+                document.getElementById('toggleAllPeriodos').textContent = 'Selecionar Todos';
+                
+                updateActiveFiltersCount();
+                resetData();
+                updateAllCharts();
+                updateMetrics();
+                updateFiltersSummary();
+            });
+
+            // Apply filters (visual feedback)
+            applyFilters.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+
+            updateFiltersSummary();
+        }
+
+        function getDefaultValue(filterId) {
+            const defaults = {
+                'status': 'Todos',
+                'unidade': 'Todas',
+                'severidade': 'Todas',
+                'periodo': []
+            };
+            return defaults[filterId];
+        }
+
+        // Initialize multi-select period filter
+        function initializeMultiSelectPeriod() {
+            const trigger = document.getElementById('periodoFilter');
+            const dropdown = document.getElementById('periodoDropdown');
+            const toggleAll = document.getElementById('toggleAllPeriodos');
+            const checkboxes = document.querySelectorAll('.periodo-checkbox');
+            const selectedMonthsContainer = document.getElementById('selectedMonths');
+            const triggerText = trigger.querySelector('.multi-select-text');
+            
+            let allSelected = false;
+            
+            // Toggle dropdown
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = dropdown.classList.contains('open');
+                dropdown.classList.toggle('open');
+                trigger.setAttribute('aria-expanded', !isOpen);
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+            
+            // Toggle all functionality
+            toggleAll.addEventListener('click', function() {
+                allSelected = !allSelected;
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = allSelected;
+                });
+                toggleAll.textContent = allSelected ? 'Desmarcar Todos' : 'Selecionar Todos';
+                updateSelectedMonths();
+            });
+            
+            // Individual checkbox changes
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateSelectedMonths();
+                    
+                    // Update toggle all button state
+                    const checkedCount = document.querySelectorAll('.periodo-checkbox:checked').length;
+                    if (checkedCount === checkboxes.length) {
+                        allSelected = true;
+                        toggleAll.textContent = 'Desmarcar Todos';
+                    } else {
+                        allSelected = false;
+                        toggleAll.textContent = 'Selecionar Todos';
+                    }
+                });
+            });
+            
+            function updateSelectedMonths() {
+                const selectedValues = Array.from(document.querySelectorAll('.periodo-checkbox:checked')).map(cb => cb.value);
+                filterState.periodo = selectedValues;
+                
+                // Update trigger text
+                if (selectedValues.length === 0) {
+                    triggerText.textContent = 'Todos os períodos';
+                    trigger.classList.remove('active');
+                } else {
+                    triggerText.textContent = `Período (${selectedValues.length} selecionados)`;
+                    trigger.classList.add('active');
+                }
+                
+                // Update selected months pills
+                selectedMonthsContainer.innerHTML = '';
+                selectedValues.forEach(value => {
+                    const month = availableMonths.find(m => m.valor === value);
+                    if (month) {
+                        const pill = document.createElement('div');
+                        pill.className = 'month-pill';
+                        pill.innerHTML = `
+                            <span>${month.label}</span>
+                            <button type="button" class="remove-month" onclick="removeMonth('${value}')">×</button>
+                        `;
+                        selectedMonthsContainer.appendChild(pill);
+                    }
+                });
+                
+                // Update filter count and apply filter
+                updateActiveFiltersCount();
+                applyFiltersToData();
+            }
+            
+            // Global function to remove individual months
+            window.removeMonth = function(value) {
+                const checkbox = document.querySelector(`.periodo-checkbox[value="${value}"]`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                    updateSelectedMonths();
+                }
+            };
+        }
+
+        function updateActiveFiltersCount() {
+            activeFilters = 0;
+            
+            // Check each filter type
+            if (filterState.status !== 'Todos') activeFilters++;
+            if (filterState.unidade !== 'Todas') activeFilters++;
+            if (filterState.severidade !== 'Todas') activeFilters++;
+            if (filterState.periodo.length > 0) activeFilters++;
+            
+            const badge = document.getElementById('filterBadge');
+            badge.textContent = activeFilters;
+            
+            if (activeFilters > 0) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function applyFiltersToData() {
+            debugLog('Applying filters:', filterState);
+            
+            // Filter the actual incidents dataset
+            let filteredIncidents = allIncidents.filter(incident => {
+                // Status filter
+                if (filterState.status !== 'Todos' && incident.status !== filterState.status) {
+                    return false;
+                }
+                
+                // Unidade filter
+                if (filterState.unidade !== 'Todas' && incident.notificada !== filterState.unidade) {
+                    return false;
+                }
+                
+                // Severidade filter
+                if (filterState.severidade !== 'Todas' && incident.severidade !== filterState.severidade) {
+                    return false;
+                }
+                
+                // Período filter (multi-select)
+                if (filterState.periodo.length > 0) {
+                    if (!filterState.periodo.includes(incident.mes_ano)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+            
+            debugLog('Filtered dataset length:', filteredIncidents.length);
+            
+            // Recalculate all metrics from filtered dataset
+            currentData = recalculateDataFromIncidents(filteredIncidents);
+            
+            updateAllCharts();
+            updateMetrics();
+            updateFiltersSummary();
+            updateResponsaveis(filteredIncidents);
+        }
+        
+        function recalculateDataFromIncidents(incidents) {
+            const data = {
+                resumo_geral: {
+                    total_ocorrencias: incidents.length,
+                    concluidas: 0,
+                    em_andamento: 0,
+                    taxa_conclusao: 0
+                },
+                por_status: {},
+                por_severidade: {},
+                por_unidade: {},
+                por_tipo_ocorrencia: {},
+                tipo_incidente_oms_mensal: {},
+                por_tipo_incidente_oms: {},
+                por_origem: {},
+                por_processo: {},
+                timeline_mensal: {},
+                top_responsaveis: {},
+                acao_imediata: { "Sim": 0, "Não": 0 },
+                por_fase: {},
+                abertura_por_mes: {
+                    meses: ['2024-06', '2024-11', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-10'],
+                    total: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    concluidas: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    em_andamento: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                }
+            };
+            
+            // Initialize monthly OMS data structure
+            const months = ['2024-06', '2024-11', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-10'];
+            months.forEach(month => {
+                data.tipo_incidente_oms_mensal[month] = { "Não Classificado": 0, "Administração clínica": 0 };
+            });
+            
+            // Count incidents by various categories
+            incidents.forEach(incident => {
+                // Status
+                data.por_status[incident.status] = (data.por_status[incident.status] || 0) + 1;
+                if (incident.status === 'Concluído') data.resumo_geral.concluidas++;
+                if (incident.status === 'Em Andamento') data.resumo_geral.em_andamento++;
+                
+                // Severidade
+                data.por_severidade[incident.severidade] = (data.por_severidade[incident.severidade] || 0) + 1;
+                
+                // Unidade
+                data.por_unidade[incident.notificada] = (data.por_unidade[incident.notificada] || 0) + 1;
+                
+                // Tipo Ocorrencia
+                data.por_tipo_ocorrencia[incident.ocorrencia] = (data.por_tipo_ocorrencia[incident.ocorrencia] || 0) + 1;
+                
+                // Tipo Incidente OMS
+                data.por_tipo_incidente_oms[incident.tipo_incidente_oms] = (data.por_tipo_incidente_oms[incident.tipo_incidente_oms] || 0) + 1;
+                
+                // Monthly OMS data
+                if (data.tipo_incidente_oms_mensal[incident.mes_ano]) {
+                    data.tipo_incidente_oms_mensal[incident.mes_ano][incident.tipo_incidente_oms]++;
+                }
+                
+                // Origem
+                data.por_origem[incident.origem] = (data.por_origem[incident.origem] || 0) + 1;
+                
+                // Processo
+                data.por_processo[incident.processo] = (data.por_processo[incident.processo] || 0) + 1;
+                
+                // Timeline mensal
+                data.timeline_mensal[incident.mes_ano] = (data.timeline_mensal[incident.mes_ano] || 0) + 1;
+                
+                // Abertura por mês - recalculate from filtered data
+                const mesIndex = data.abertura_por_mes.meses.indexOf(incident.mes_ano);
+                if (mesIndex !== -1) {
+                    data.abertura_por_mes.total[mesIndex]++;
+                    if (incident.status === 'Concluído') {
+                        data.abertura_por_mes.concluidas[mesIndex]++;
+                    } else if (incident.status === 'Em Andamento') {
+                        data.abertura_por_mes.em_andamento[mesIndex]++;
+                    }
+                }
+                
+                // Responsaveis
+                data.top_responsaveis[incident.responsavel] = (data.top_responsaveis[incident.responsavel] || 0) + 1;
+                
+                // Acao imediata
+                data.acao_imediata[incident.acao_imediata]++;
+                
+                // Fase da Ocorrência
+                data.por_fase[incident.fase] = (data.por_fase[incident.fase] || 0) + 1;
+            });
+            
+            // Calculate completion rate
+            if (incidents.length > 0) {
+                data.resumo_geral.taxa_conclusao = Math.round((data.resumo_geral.concluidas / incidents.length) * 100);
+            }
+            
+            return data;
+        }
+
+        function resetData() {
+            currentData = JSON.parse(JSON.stringify(originalData));
+        }
+
+        function updateAllCharts() {
+            // Add updating animation
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.add('updating');
+                setTimeout(() => card.classList.remove('updating'), 300);
+            });
+            
+            // Update all charts with current data
+            setTimeout(() => {
+                updateChart('statusChart', Object.keys(currentData.por_status), Object.values(currentData.por_status));
+                updateChart('severidadeChart', 
+                    ['Circunst. Risco', 'Nenhum Dano', 'Dano Leve', 'Não Informado', 'Near Miss', 'Leve', 'Dano Moderado'],
+                    [
+                        currentData.por_severidade["Circunstância de Risco (Saúde)"] || 0,
+                        currentData.por_severidade["Evento com Nenhum Dano (Saúde)"] || 0,
+                        currentData.por_severidade["Evento com Dano Leve (Saúde)"] || 0,
+                        currentData.por_severidade["Não Informado"] || 0,
+                        currentData.por_severidade["Near Miss (Saúde)"] || 0,
+                        currentData.por_severidade["Leve"] || 0,
+                        currentData.por_severidade["Evento com Dano Moderado (Saúde)"] || 0
+                    ]
+                );
+                updateFaseChart();
+                updateOmsMonthlyChart();
+                updateChart('unidadesChart', 
+                    ['Sesi Tabuleiro', 'Sesi Arapiraca', 'Sesi Cambona', 'Sesi Senai Arapiraca', 'Seg. Saúde Indústria'],
+                    [
+                        currentData.por_unidade["Unidade Sesi Tabuleiro"] || 0,
+                        currentData.por_unidade["Unidade Sesi Arapiraca"] || 0,
+                        currentData.por_unidade["Unidade Sesi Cambona"] || 0,
+                        currentData.por_unidade["Unidade Sesi Senai Arapiraca"] || 0,
+                        currentData.por_unidade["Segurança e Saúde para Indústria"] || 0
+                    ]
+                );
+                updateNotificadorasChart();
+                updateChart('tiposChart', 
+                    ['Incidente/evento', 'Ident. Errada', 'Queda', 'Cadastro incorreto', 'Divergência dados', 'Atraso laudos', 'Recoleta exames', 'Retif./troca laudos', 'Outros'],
+                    [
+                        currentData.por_tipo_ocorrencia["Incidente/evento adverso ocorrido no serviço de saúde"] || 0,
+                        currentData.por_tipo_ocorrencia["Identificação Errada do Paciente"] || 0,
+                        currentData.por_tipo_ocorrencia["Queda"] || 0,
+                        currentData.por_tipo_ocorrencia["Cadastro incorreto ou incompleto"] || 0,
+                        currentData.por_tipo_ocorrencia["Divergência ou desatualização dos dados de cadastro"] || 0,
+                        currentData.por_tipo_ocorrencia["Atraso na liberação de laudos"] || 0,
+                        currentData.por_tipo_ocorrencia["Recoleta de exames laboratoriais"] || 0,
+                        currentData.por_tipo_ocorrencia["Retificação e/ou troca de laudos"] || 0,
+                        currentData.por_tipo_ocorrencia["Outros"] || 0
+                    ]
+                );
+                updateChart('timelineChart', 
+                    ['Jun/24', 'Nov/24', 'Jan/25', 'Fev/25', 'Mar/25', 'Abr/25', 'Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Out/25'],
+                    Object.values(currentData.timeline_mensal)
+                );
+                updateOrigemChart();
+                updateChart('processosChart', 
+                    ['Admin. Consultas/Exames', 'Admin. Acesso Paciente', 'Gerenciar Serv. Saúde', 'Administrar ASO'],
+                    [
+                        currentData.por_processo["Administrar Consultas/ Exames de Saúde"] || 0,
+                        currentData.por_processo["Administrar Acesso do Paciente/ Cliente"] || 0,
+                        currentData.por_processo["SP10.2.1.Gerenciar Serviços de Saúde Complementar"] || 0,
+                        currentData.por_processo["Administrar ASO"] || 0
+                    ]
+                );
+                updateAberturaChart();
+                
+                // Update data table if on data tab
+                if (document.getElementById('dataContent').classList.contains('active')) {
+                    updateTable();
+                }
+            }, 150);
+        }
+
+        function updateChart(chartId, labels, data) {
+            if (charts[chartId]) {
+                charts[chartId].data.labels = labels;
+                charts[chartId].data.datasets[0].data = data;
+                charts[chartId].update('active');
+            }
+        }
+        
+        function updateOrigemChart() {
+            if (charts.origemChart) {
+                const origemLabels = ['Notif. Clínicas Sesi', 'Auditoria Interna', 'Monitor. Interno', 'Monitor. Processos'];
+                const origemData = [
+                    currentData.por_origem["Notificação Clínicas Sesi"] || 0,
+                    currentData.por_origem["Auditoria Interna"] || 0,
+                    currentData.por_origem["Monitoramento Interno"] || 0,
+                    currentData.por_origem["Monitoramento de Processos"] || 0
+                ];
+                
+                charts.origemChart.data.labels = origemLabels;
+                charts.origemChart.data.datasets[0].data = origemData;
+                // Maintain distinct colors for each origem
+                charts.origemChart.data.datasets[0].backgroundColor = ['#003E7E', '#E30613', '#FF6600', '#28a745'];
+                charts.origemChart.update('active');
+            }
+        }
+        
+        function updateAberturaChart() {
+            if (charts.aberturaChart) {
+                charts.aberturaChart.data.datasets[0].data = currentData.abertura_por_mes.concluidas;
+                charts.aberturaChart.data.datasets[1].data = currentData.abertura_por_mes.em_andamento;
+                charts.aberturaChart.update('active');
+            }
+        }
+        
+        function updateOmsMonthlyChart() {
+            if (charts.tipoIncidenteOmsChart) {
+                const omsMonthlyKeys = ['2024-06', '2024-11', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-10'];
+                
+                const naoClassificadoData = omsMonthlyKeys.map(key => 
+                    currentData.tipo_incidente_oms_mensal[key] ? currentData.tipo_incidente_oms_mensal[key]['Não Classificado'] || 0 : 0
+                );
+                const administracaoData = omsMonthlyKeys.map(key => 
+                    currentData.tipo_incidente_oms_mensal[key] ? currentData.tipo_incidente_oms_mensal[key]['Administração clínica'] || 0 : 0
+                );
+                
+                charts.tipoIncidenteOmsChart.data.datasets[0].data = naoClassificadoData;
+                charts.tipoIncidenteOmsChart.data.datasets[1].data = administracaoData;
+                charts.tipoIncidenteOmsChart.update('active');
+            }
+        }
+        
+        function updateResponsaveis(filteredIncidents) {
+            const responsaveisContainer = document.querySelector('.responsaveis-list');
+            if (!responsaveisContainer) return;
+            
+            // Count responsaveis from filtered data
+            const responsaveisCount = {};
+            filteredIncidents.forEach(incident => {
+                responsaveisCount[incident.responsavel] = (responsaveisCount[incident.responsavel] || 0) + 1;
+            });
+            
+            // Sort by count and take top 6
+            const sortedResponsaveis = Object.entries(responsaveisCount)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 6);
+            
+            // Generate HTML
+            responsaveisContainer.innerHTML = sortedResponsaveis.map(([name, count]) => {
+                const initials = name.split('.').map(n => n.charAt(0).toUpperCase()).join('');
+                return `
+                    <div class="responsavel-item">
+                        <div class="responsavel-info">
+                            <div class="avatar">${initials}</div>
+                            <div class="responsavel-name">${name}</div>
+                        </div>
+                        <div class="responsavel-count">${count}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateMetrics() {
+            // Update individual metric cards by ID
+            document.getElementById('totalMetric').textContent = currentData.resumo_geral.total_ocorrencias;
+            document.getElementById('concluidasMetric').textContent = currentData.resumo_geral.concluidas;
+            document.getElementById('andamentoMetric').textContent = currentData.resumo_geral.em_andamento;
+            document.getElementById('taxaMetric').textContent = currentData.resumo_geral.taxa_conclusao + '%';
+            
+            // Update progress bar
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) {
+                progressFill.style.width = currentData.resumo_geral.taxa_conclusao + '%';
+            }
+            
+            // Update action metrics
+            const actionItems = document.querySelectorAll('.action-item');
+            if (actionItems.length >= 2 && currentData.acao_imediata) {
+                const totalAcao = (currentData.acao_imediata["Sim"] || 0) + (currentData.acao_imediata["Não"] || 0);
+                if (totalAcao > 0) {
+                    actionItems[0].querySelector('.action-value').textContent = currentData.acao_imediata["Sim"] || 0;
+                    actionItems[0].querySelector('.percentage').textContent = Math.round(((currentData.acao_imediata["Sim"] || 0) / totalAcao) * 100) + '%';
+                    actionItems[1].querySelector('.action-value').textContent = currentData.acao_imediata["Não"] || 0;
+                    actionItems[1].querySelector('.percentage').textContent = Math.round(((currentData.acao_imediata["Não"] || 0) / totalAcao) * 100) + '%';
+                }
+            }
+        }
+
+        function updateFiltersSummary() {
+            const summary = document.getElementById('filtersSummary');
+            const filtered = currentData.resumo_geral.total_ocorrencias;
+            const total = originalData.resumo_geral.total_ocorrencias;
+            summary.innerHTML = `Exibindo <strong>${filtered}</strong> de ${total} ocorrências`;
+        }
+        
+        function updateNotificadorasChart() {
+            if (charts.notificadorasChart) {
+                // If we have filtered months, calculate notificadoras data for those months only
+                let notificadorasData;
+                
+                if (filterState.periodo.length > 0) {
+                    // Calculate data for selected months only
+                    notificadorasData = {
+                        "Unidade Sesi Tabuleiro": 0,
+                        "Unidade Sesi Arapiraca": 0,
+                        "Unidade Sesi Cambona": 0,
+                        "Unidade Sesi Senai Arapiraca": 0,
+                        "Segurança e Saúde para Indústria": 0,
+                        "Segurança e Saúde no Trabalho e Saúde Complementar (antigo)": 0,
+                        "Presidência": 0
+                    };
+                    
+                    filterState.periodo.forEach(month => {
+                        if (unidadesNotificadorasData[month]) {
+                            Object.keys(unidadesNotificadorasData[month]).forEach(unit => {
+                                notificadorasData[unit] += unidadesNotificadorasData[month][unit];
+                            });
+                        }
+                    });
+                } else {
+                    // Use total data
+                    notificadorasData = totaisNotificadoras;
+                }
+                
+                // Update chart with new data
+                charts.notificadorasChart.data.datasets[0].data = [
+                    notificadorasData["Unidade Sesi Tabuleiro"] || 0,
+                    notificadorasData["Unidade Sesi Arapiraca"] || 0,
+                    notificadorasData["Unidade Sesi Cambona"] || 0,
+                    notificadorasData["Unidade Sesi Senai Arapiraca"] || 0,
+                    notificadorasData["Segurança e Saúde para Indústria"] || 0,
+                    notificadorasData["Segurança e Saúde no Trabalho e Saúde Complementar (antigo)"] || 0,
+                    notificadorasData["Presidência"] || 0
+                ];
+                
+                charts.notificadorasChart.update('active');
+            }
+        }
+        
+        function updateFaseChart() {
+            if (charts.faseChart) {
+                const faseData = [
+                    currentData.por_fase["Concluída"] || 0,
+                    currentData.por_fase["Analisar Causa e Fazer Plano de Ação"] || 0,
+                    currentData.por_fase["Registrar Ação Imediata"] || 0,
+                    currentData.por_fase["Gerenciar Plano de Ação"] || 0,
+                    currentData.por_fase["Avaliar Ocorrência"] || 0
+                ];
+                
+                charts.faseChart.data.datasets[0].data = faseData;
+                charts.faseChart.update('active');
+            }
+        }
+        
+        // Tab system functionality
+        function initializeTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    
+                    // Remove active class from all tabs and contents
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show corresponding content
+                    const targetContent = tabId === 'dashboard' ? 
+                        document.getElementById('dashboardContent') : 
+                        document.getElementById('dataContent');
+                    targetContent.classList.add('active');
+                    
+                    // Initialize table if switching to data tab
+                    if (tabId === 'data') {
+                        updateTable();
+                    }
+                });
+            });
+        }
+        
+        // Data table functionality
+        let currentSort = { column: null, direction: 'asc' };
+        let currentPage = 1;
+        let rowsPerPage = 25;
+        let filteredData = [];
+        let searchTerm = '';
+        
+        function initializeDataTable() {
+            const searchInput = document.getElementById('tableSearch');
+            const rowsSelect = document.getElementById('rowsPerPage');
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtn = document.getElementById('importBtn');
+            const importFile = document.getElementById('importExcelInput');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            const tableHeaders = document.querySelectorAll('th[data-sort]');
+            
+            // Search functionality
+            searchInput.addEventListener('input', function() {
+                searchTerm = this.value.toLowerCase();
+                currentPage = 1;
+                updateTable();
+            });
+            
+            // Rows per page
+            rowsSelect.addEventListener('change', function() {
+                rowsPerPage = parseInt(this.value);
+                currentPage = 1;
+                updateTable();
+            });
+            
+            // Export and Import functionality
+            exportBtn.addEventListener('click', showExportModal);
+            
+            // Import functionality
+            if (importBtn && importFile) {
+                importBtn.addEventListener('click', function() {
+                    importFile.click();
+                });
+                
+                importFile.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        importFromExcel(file);
+                        // Reset file input
+                        e.target.value = '';
+                    }
+                });
+            }
+            
+            // Modal functionality
+            const closeModal = document.getElementById('closeModal');
+            const cancelExport = document.getElementById('cancelExport');
+            const confirmExport = document.getElementById('confirmExport');
+            const exportModal = document.getElementById('exportModal');
+            
+            if (closeModal) closeModal.addEventListener('click', hideExportModal);
+            if (cancelExport) cancelExport.addEventListener('click', hideExportModal);
+            if (confirmExport) confirmExport.addEventListener('click', exportToExcel);
+            
+            // Close modal when clicking outside
+            if (exportModal) {
+                exportModal.addEventListener('click', function(e) {
+                    if (e.target === exportModal) {
+                        hideExportModal();
+                    }
+                });
+            }
+            
+            // Pagination
+            prevBtn.addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable();
+                }
+            });
+            
+            nextBtn.addEventListener('click', function() {
+                const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable();
+                }
+            });
+            
+            // Sorting
+            tableHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        currentSort.direction = 'asc';
+                    }
+                    
+                    // Update header visuals
+                    tableHeaders.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                    this.classList.add('sort-' + currentSort.direction);
+                    
+                    currentPage = 1;
+                    updateTable();
+                });
+            });
+            
+            // Initial table population
+            updateTable();
+        }
+        
+        function updateTable() {
+            // Filter incidents based on current filters and search
+            filteredData = allIncidents.filter(incident => {
+                // Apply existing filters
+                if (filterState.status !== 'Todos' && incident.status !== filterState.status) {
+                    return false;
+                }
+                
+                if (filterState.unidade !== 'Todas' && incident.notificada !== filterState.unidade) {
+                    return false;
+                }
+                
+                if (filterState.severidade !== 'Todas' && incident.severidade !== filterState.severidade) {
+                    return false;
+                }
+                
+                if (filterState.periodo.length > 0 && !filterState.periodo.includes(incident.mes_ano)) {
+                    return false;
+                }
+                
+                // Apply search filter
+                if (searchTerm) {
+                    const searchString = Object.values(incident).join(' ').toLowerCase();
+                    if (!searchString.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+            
+            // Sort data
+            if (currentSort.column) {
+                filteredData.sort((a, b) => {
+                    let aVal = a[currentSort.column] || '';
+                    let bVal = b[currentSort.column] || '';
+                    
+                    // Handle numbers
+                    if (currentSort.column === 'codigo') {
+                        aVal = parseInt(aVal);
+                        bVal = parseInt(bVal);
+                    }
+                    
+                    if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            // Update table summary
+            const totalFiltered = filteredData.length;
+            const total = allIncidents.length;
+            const summary = totalFiltered === total ? 
+                `Exibindo ${totalFiltered} de ${total} registros` : 
+                `Exibindo ${totalFiltered} de ${total} registros (filtrado)`;
+            document.getElementById('tableSummary').textContent = summary;
+            
+            // Pagination
+            const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(totalFiltered / rowsPerPage);
+            const startRow = rowsPerPage === -1 ? 1 : (currentPage - 1) * rowsPerPage + 1;
+            const endRow = rowsPerPage === -1 ? totalFiltered : Math.min(currentPage * rowsPerPage, totalFiltered);
+            
+            // Update pagination info
+            document.getElementById('paginationInfo').textContent = 
+                `Mostrando ${startRow} até ${endRow} de ${totalFiltered} registros`;
+            
+            // Update pagination buttons
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+            
+            // Generate page numbers
+            generatePageNumbers(totalPages);
+            
+            // Render table rows
+            renderTableRows();
+        }
+        
+        function renderTableRows() {
+            const tbody = document.getElementById('tableBody');
+            const startIdx = rowsPerPage === -1 ? 0 : (currentPage - 1) * rowsPerPage;
+            const endIdx = rowsPerPage === -1 ? filteredData.length : startIdx + rowsPerPage;
+            const pageData = filteredData.slice(startIdx, endIdx);
+            
+            tbody.innerHTML = pageData.map(incident => {
+                return `
+                    <tr>
+                        <td>${incident.codigo}</td>
+                        <td>${highlightSearch(incident.ocorrencia)}</td>
+                        <td>${highlightSearch(incident.data)}</td>
+                        <td>${highlightSearch(incident.notificadora)}</td>
+                        <td>${highlightSearch(incident.notificada)}</td>
+                        <td>${highlightSearch(incident.origem)}</td>
+                        <td>Incidente envolvendo o Paciente</td>
+                        <td>${highlightSearch(incident.severidade)}</td>
+                        <td>${highlightSearch(incident.tipo_incidente_oms)}</td>
+                        <td><span class="status-badge ${incident.status.toLowerCase().replace(' ', '-').replace('í', 'i')}">${incident.status}</span></td>
+                        <td>${highlightSearch(incident.acao_imediata)}</td>
+                        <td>${highlightSearch(incident.responsavel)}</td>
+                        <td><span class="fase-badge ${getFaseClass(incident.fase)}">${incident.fase}</span></td>
+                        <td style="font-size: 11px;">${highlightSearch(incident.processo)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function highlightSearch(text) {
+            if (!searchTerm || !text) return text;
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            return text.toString().replace(regex, '<span class="search-highlight">$1</span>');
+        }
+        
+        function getFaseClass(fase) {
+            switch(fase) {
+                case 'Concluída': return 'concluida';
+                case 'Analisar Causa e Fazer Plano de Ação': return 'analisar-causa';
+                case 'Registrar Ação Imediata': return 'registrar-acao';
+                case 'Gerenciar Plano de Ação': return 'gerenciar-plano';
+                case 'Avaliar Ocorrência': return 'avaliar-ocorrencia';
+                default: return '';
+            }
+        }
+        
+        function generatePageNumbers(totalPages) {
+            const container = document.getElementById('pageNumbers');
+            container.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            
+            if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
+                pageBtn.textContent = i;
+                pageBtn.addEventListener('click', function() {
+                    currentPage = i;
+                    updateTable();
+                });
+                container.appendChild(pageBtn);
+            }
+        }
+        
+        // Excel Import/Export Functions
+        let selectedColumns = [];
+        
+        function showExportModal() {
+            const modal = document.getElementById('exportModal');
+            const columnGrid = document.getElementById('columnGrid');
+            
+            // Define available columns
+            const availableColumns = [
+                { key: 'codigo', label: 'Código' },
+                { key: 'ocorrencia', label: 'Ocorrência' },
+                { key: 'data', label: 'Data' },
+                { key: 'notificadora', label: 'Notificadora' },
+                { key: 'notificada', label: 'Notificada' },
+                { key: 'origem', label: 'Origem' },
+                { key: 'severidade', label: 'Severidade/Gravidade' },
+                { key: 'tipo_incidente_oms', label: 'Tipo de Incidente - OMS' },
+                { key: 'status', label: 'Status' },
+                { key: 'acao_imediata', label: 'Ação Imediata' },
+                { key: 'responsavel', label: 'Responsável' },
+                { key: 'fase', label: 'Fase da Ocorrência' },
+                { key: 'processo', label: 'Processo' }
+            ];
+            
+            // Clear previous content
+            columnGrid.innerHTML = '';
+            
+            // Create checkboxes for each column
+            availableColumns.forEach(column => {
+                const columnItem = document.createElement('div');
+                columnItem.className = 'column-item';
+                columnItem.innerHTML = `
+                    <label>
+                        <input type="checkbox" value="${column.key}" checked>
+                        ${column.label}
+                    </label>
+                `;
+                columnGrid.appendChild(columnItem);
+            });
+            
+            modal.style.display = 'block';
+        }
+        
+        function hideExportModal() {
+            const modal = document.getElementById('exportModal');
+            modal.style.display = 'none';
+            resetModalState();
+        }
+        
+        function resetModalState() {
+            const progressContainer = document.getElementById('progressContainer');
+            const statusMessage = document.getElementById('statusMessage');
+            const progressFill = document.getElementById('progressFill');
+            
+            progressContainer.style.display = 'none';
+            statusMessage.innerHTML = '';
+            progressFill.style.width = '0%';
+        }
+        
+        function updateProgress(percentage, message) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            progressContainer.style.display = 'block';
+            progressFill.style.width = percentage + '%';
+            statusMessage.innerHTML = `<div class="status-info">${message}</div>`;
+        }
+        
+        function showStatusMessage(message, type = 'info') {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.innerHTML = `<div class="status-${type}">${message}</div>`;
+        }
+        
+        function exportToExcel() {
+            const checkboxes = document.querySelectorAll('#columnGrid input[type="checkbox"]:checked');
+            selectedColumns = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedColumns.length === 0) {
+                showStatusMessage('Selecione pelo menos uma coluna para exportar.', 'error');
+                return;
+            }
+            
+            updateProgress(10, 'Preparando dados para exportação...');
+            
+            setTimeout(() => {
+                try {
+                    // Create workbook
+                    const wb = XLSX.utils.book_new();
+                    
+                    updateProgress(30, 'Processando dados...');
+                    
+                    // Define column mapping
+                    const columnMapping = {
+                        codigo: 'Código',
+                        ocorrencia: 'Ocorrência',
+                        data: 'Data',
+                        notificadora: 'Notificadora',
+                        notificada: 'Notificada',
+                        origem: 'Origem',
+                        severidade: 'Severidade/Gravidade',
+                        tipo_incidente_oms: 'Tipo de Incidente - OMS',
+                        status: 'Status',
+                        acao_imediata: 'Ação Imediata',
+                        responsavel: 'Responsável',
+                        fase: 'Fase da Ocorrência',
+                        processo: 'Processo'
+                    };
+                    
+                    // Prepare data with selected columns only
+                    const exportData = filteredData.map(incident => {
+                        const row = {};
+                        selectedColumns.forEach(col => {
+                            row[columnMapping[col]] = incident[col] || '';
+                        });
+                        return row;
+                    });
+                    
+                    updateProgress(60, 'Criando planilha Excel...');
+                    
+                    // Create worksheet
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+                    
+                    // Set column widths
+                    const colWidths = selectedColumns.map(col => {
+                        switch(col) {
+                            case 'codigo': return { wch: 10 };
+                            case 'ocorrencia': return { wch: 40 };
+                            case 'data': return { wch: 12 };
+                            case 'notificadora': return { wch: 25 };
+                            case 'notificada': return { wch: 25 };
+                            case 'origem': return { wch: 20 };
+                            case 'severidade': return { wch: 30 };
+                            case 'tipo_incidente_oms': return { wch: 25 };
+                            case 'status': return { wch: 15 };
+                            case 'acao_imediata': return { wch: 15 };
+                            case 'responsavel': return { wch: 20 };
+                            case 'fase': return { wch: 30 };
+                            case 'processo': return { wch: 35 };
+                            default: return { wch: 15 };
+                        }
+                    });
+                    ws['!cols'] = colWidths;
+                    
+                    updateProgress(80, 'Finalizando arquivo...');
+                    
+                    // Add worksheet to workbook
+                    XLSX.utils.book_append_sheet(wb, ws, 'Ocorrências');
+                    
+                    // Generate filename with timestamp
+                    const timestamp = new Date().toISOString().split('T')[0];
+                    const filename = `ocorrencias_sesi_senai_${timestamp}.xlsx`;
+                    
+                    updateProgress(100, 'Download iniciado!');
+                    
+                    // Save file
+                    XLSX.writeFile(wb, filename);
+                    
+                    setTimeout(() => {
+                        showStatusMessage('Arquivo Excel exportado com sucesso!', 'success');
+                        setTimeout(() => {
+                            hideExportModal();
+                        }, 2000);
+                    }, 500);
+                    
+                } catch (error) {
+                    debugError('Erro na exportação:', error);
+                    showStatusMessage('Erro ao exportar arquivo Excel. Tente novamente.', 'error');
+                }
+            }, 100);
+        }
+        
+        function importFromExcel(file) {
+            if (!file) return;
+            
+            const validTypes = [
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-excel'
+            ];
+            
+            if (!validTypes.includes(file.type)) {
+                alert('Formato de arquivo inválido. Selecione um arquivo .xlsx ou .xls');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first worksheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (jsonData.length === 0) {
+                        alert('O arquivo Excel está vazio ou não contém dados válidos.');
+                        return;
+                    }
+                    
+                    // Validate and process imported data
+                    const processedData = validateAndProcessImportedData(jsonData);
+                    
+                    if (processedData.length > 0) {
+                        // Add imported data to existing data
+                        allIncidents = [...allIncidents, ...processedData];
+                        
+                        // Update dashboard in real-time
+                        updateDashboardAfterImport();
+                        
+                        alert(`${processedData.length} ocorrências importadas com sucesso!`);
+                    } else {
+                        alert('Nenhum dado válido foi encontrado no arquivo.');
+                    }
+                    
+                } catch (error) {
+                    debugError('Erro na importação:', error);
+                    alert('Erro ao processar arquivo Excel. Verifique o formato e tente novamente.');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function validateAndProcessImportedData(jsonData) {
+            const processedData = [];
+            const requiredFields = ['Código', 'Data', 'Status'];
+            
+            jsonData.forEach((row, index) => {
+                try {
+                    // Check required fields
+                    const hasRequiredFields = requiredFields.every(field => 
+                        row[field] !== undefined && row[field] !== null && row[field] !== ''
+                    );
+                    
+                    if (!hasRequiredFields) {
+                        debugWarn(`Linha ${index + 2}: Campos obrigatórios ausentes`);
+                        return;
+                    }
+                    
+                    // Process and normalize data
+                    const processedRow = {
+                        codigo: String(row['Código'] || '').trim(),
+                        data: formatDate(row['Data']),
+                        mes_ano: extractMonthYear(row['Data']),
+                        status: String(row['Status'] || '').trim(),
+                        notificada: String(row['Notificada'] || '').trim(),
+                        severidade: String(row['Severidade/Gravidade'] || '').trim(),
+                        tipo_incidente_oms: String(row['Tipo de Incidente - OMS'] || 'Não Classificado').trim(),
+                        origem: String(row['Origem'] || '').trim(),
+                        processo: String(row['Processo'] || '').trim(),
+                        responsavel: String(row['Responsável'] || '').trim(),
+                        ocorrencia: String(row['Ocorrência'] || '').trim(),
+                        acao_imediata: String(row['Ação Imediata'] || 'Não').trim(),
+                        notificadora: String(row['Notificadora'] || '').trim(),
+                        fase: String(row['Fase da Ocorrência'] || '').trim()
+                    };
+                    
+                    // Check if incident already exists
+                    const exists = allIncidents.some(incident => incident.codigo === processedRow.codigo);
+                    if (!exists) {
+                        processedData.push(processedRow);
+                    }
+                    
+                } catch (error) {
+                    debugWarn(`Erro ao processar linha ${index + 2}:`, error);
+                }
+            });
+            
+            return processedData;
+        }
+        
+        function formatDate(dateValue) {
+            if (!dateValue) return '';
+            
+            // Handle different date formats
+            if (typeof dateValue === 'number') {
+                // Excel serial date
+                const date = new Date((dateValue - 25569) * 86400 * 1000);
+                return date.toLocaleDateString('pt-BR');
+            } else if (typeof dateValue === 'string') {
+                // Try to parse string date
+                const date = new Date(dateValue);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('pt-BR');
+                }
+                return dateValue; // Return as is if can't parse
+            }
+            
+            return String(dateValue);
+        }
+        
+        function extractMonthYear(dateValue) {
+            try {
+                let date;
+                if (typeof dateValue === 'number') {
+                    date = new Date((dateValue - 25569) * 86400 * 1000);
+                } else {
+                    date = new Date(dateValue);
+                }
+                
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    return `${year}-${month}`;
+                }
+            } catch (error) {
+                debugWarn('Erro ao extrair mês/ano:', error);
+            }
+            
+            return new Date().toISOString().substring(0, 7); // Default to current month
+        }
+        
+        function updateDashboardAfterImport() {
+             // Recalculate filtered data
+             applyFilters();
+             
+             // Update all dashboard components
+             updateDashboard();
+             updateDetailedTable();
+             
+             // Update charts
+             if (typeof updateCharts === 'function') {
+                 updateCharts();
+             }
+             
+             // Show success message
+             debugLog('Dashboard atualizado após importação');
+         }
+         
+         // Testing Functions for Data Integrity and Performance
+         function runDataIntegrityTests() {
+             debugLog('=== Iniciando Testes de Integridade dos Dados ===');
+             
+             const testResults = {
+                 totalTests: 0,
+                 passedTests: 0,
+                 failedTests: 0,
+                 errors: []
+             };
+             
+             // Test 1: Check for duplicate codes
+             testResults.totalTests++;
+             const codes = allIncidents.map(incident => incident.codigo);
+             const uniqueCodes = [...new Set(codes)];
+             if (codes.length === uniqueCodes.length) {
+                 testResults.passedTests++;
+                 debugLog('✓ Teste 1 PASSOU: Não há códigos duplicados');
+             } else {
+                 testResults.failedTests++;
+                 testResults.errors.push('Códigos duplicados encontrados');
+                 debugLog('✗ Teste 1 FALHOU: Códigos duplicados encontrados');
+             }
+             
+             // Test 2: Check required fields
+             testResults.totalTests++;
+             const requiredFields = ['codigo', 'data', 'status'];
+             let missingFieldsCount = 0;
+             allIncidents.forEach((incident, index) => {
+                 requiredFields.forEach(field => {
+                     if (!incident[field] || incident[field].toString().trim() === '') {
+                         missingFieldsCount++;
+                     }
+                 });
+             });
+             
+             if (missingFieldsCount === 0) {
+                 testResults.passedTests++;
+                 debugLog('✓ Teste 2 PASSOU: Todos os campos obrigatórios estão preenchidos');
+                } else {
+                    testResults.failedTests++;
+                    testResults.errors.push(`${missingFieldsCount} campos obrigatórios ausentes`);
+                    debugLog(`✗ Teste 2 FALHOU: ${missingFieldsCount} campos obrigatórios ausentes`);
+             }
+             
+             // Test 3: Date format validation
+             testResults.totalTests++;
+             let invalidDatesCount = 0;
+             allIncidents.forEach(incident => {
+                 if (incident.data && !isValidDate(incident.data)) {
+                     invalidDatesCount++;
+                 }
+             });
+             
+             if (invalidDatesCount === 0) {
+                 testResults.passedTests++;
+                 debugLog('✓ Teste 3 PASSOU: Todas as datas estão em formato válido');
+                } else {
+                    testResults.failedTests++;
+                    testResults.errors.push(`${invalidDatesCount} datas em formato inválido`);
+                    debugLog(`✗ Teste 3 FALHOU: ${invalidDatesCount} datas em formato inválido`);
+             }
+             
+             // Test 4: Status values validation
+             testResults.totalTests++;
+             const validStatuses = ['Concluído', 'Em Andamento', 'Pendente', 'Cancelado'];
+             let invalidStatusCount = 0;
+             allIncidents.forEach(incident => {
+                 if (incident.status && !validStatuses.includes(incident.status)) {
+                     invalidStatusCount++;
+                 }
+             });
+             
+             if (invalidStatusCount === 0) {
+                 testResults.passedTests++;
+                 debugLog('✓ Teste 4 PASSOU: Todos os status são válidos');
+                } else {
+                    testResults.failedTests++;
+                    testResults.errors.push(`${invalidStatusCount} status inválidos`);
+                    debugLog(`✗ Teste 4 FALHOU: ${invalidStatusCount} status inválidos`);
+                }
+                
+                debugLog(`=== Resultado dos Testes de Integridade ===`);
+                debugLog(`Total: ${testResults.totalTests} | Passou: ${testResults.passedTests} | Falhou: ${testResults.failedTests}`);
+             
+             return testResults;
+         }
+         
+         function runPerformanceTests() {
+             debugLog('=== Iniciando Testes de Performance ===');
+             
+             const performanceResults = {
+                 exportTime: 0,
+                 importTime: 0,
+                 dashboardUpdateTime: 0,
+                 memoryUsage: 0
+             };
+             
+             // Test export performance
+             const exportStartTime = performance.now();
+             try {
+                 // Simulate export process
+                 const testData = allIncidents.slice(0, Math.min(1000, allIncidents.length));
+                 const wb = XLSX.utils.book_new();
+                 const ws = XLSX.utils.json_to_sheet(testData);
+                 XLSX.utils.book_append_sheet(wb, ws, 'Test');
+                 
+                 const exportEndTime = performance.now();
+                 performanceResults.exportTime = exportEndTime - exportStartTime;
+                 debugLog(`✓ Teste de Performance de Exportação: ${performanceResults.exportTime.toFixed(2)}ms para ${testData.length} registros`);
+                } catch (error) {
+                    debugLog('✗ Erro no teste de performance de exportação:', error);
+             }
+             
+             // Test dashboard update performance
+             const dashboardStartTime = performance.now();
+             try {
+                 applyFilters();
+                 updateDashboard();
+                 updateDetailedTable();
+                 
+                 const dashboardEndTime = performance.now();
+                 performanceResults.dashboardUpdateTime = dashboardEndTime - dashboardStartTime;
+                 debugLog(`✓ Teste de Performance de Atualização do Dashboard: ${performanceResults.dashboardUpdateTime.toFixed(2)}ms`);
+                } catch (error) {
+                    debugLog('✗ Erro no teste de performance do dashboard:', error);
+             }
+             
+             // Memory usage estimation
+             try {
+                 const dataSize = JSON.stringify(allIncidents).length;
+                 performanceResults.memoryUsage = dataSize / 1024; // KB
+                 debugLog(`✓ Uso estimado de memória: ${performanceResults.memoryUsage.toFixed(2)} KB para ${allIncidents.length} registros`);
+                } catch (error) {
+                    debugLog('✗ Erro ao calcular uso de memória:', error);
+             }
+             
+             // Performance recommendations
+             if (performanceResults.exportTime > 5000) {
+                 debugWarn('⚠️ AVISO: Exportação lenta detectada. Considere otimização para arquivos grandes.');
+             }
+             
+             if (performanceResults.dashboardUpdateTime > 1000) {
+                 debugWarn('⚠️ AVISO: Atualização do dashboard lenta. Considere paginação ou lazy loading.');
+             }
+             
+             if (allIncidents.length > 10000) {
+                 debugWarn('⚠️ AVISO: Grande volume de dados detectado. Considere implementar virtualização.');
+             }
+             
+             debugLog('=== Resultado dos Testes de Performance ===');
+                debugLog(`Exportação: ${performanceResults.exportTime.toFixed(2)}ms`);
+                debugLog(`Dashboard: ${performanceResults.dashboardUpdateTime.toFixed(2)}ms`);
+                debugLog(`Memória: ${performanceResults.memoryUsage.toFixed(2)} KB`);
+             
+             return performanceResults;
+         }
+         
+         function testExcelCompatibility() {
+             debugLog('=== Iniciando Testes de Compatibilidade Excel ===');
+             
+             const compatibilityResults = {
+                 xlsxSupport: false,
+                 xlsSupport: false,
+                 sheetJSVersion: '',
+                 browserSupport: false
+             };
+             
+             // Test SheetJS availability
+             if (typeof XLSX !== 'undefined') {
+                 compatibilityResults.xlsxSupport = true;
+                 compatibilityResults.xlsSupport = true;
+                 compatibilityResults.sheetJSVersion = XLSX.version || 'Desconhecida';
+                 debugLog(`✓ SheetJS disponível - Versão: ${compatibilityResults.sheetJSVersion}`);
+                } else {
+                    debugLog('✗ SheetJS não está disponível');
+                 return compatibilityResults;
+             }
+             
+             // Test browser support for File API
+             if (window.File && window.FileReader && window.FileList && window.Blob) {
+                 compatibilityResults.browserSupport = true;
+                 debugLog('✓ Navegador suporta File API');
+                } else {
+                    debugLog('✗ Navegador não suporta File API completamente');
+             }
+             
+             // Test basic Excel operations
+             try {
+                 const testWorkbook = XLSX.utils.book_new();
+                 const testData = [{ 'Teste': 'Valor', 'Número': 123 }];
+                 const testWorksheet = XLSX.utils.json_to_sheet(testData);
+                 XLSX.utils.book_append_sheet(testWorkbook, testWorksheet, 'Teste');
+                 
+                 debugLog('✓ Operações básicas do Excel funcionando');
+                } catch (error) {
+                    debugLog('✗ Erro nas operações básicas do Excel:', error);
+             }
+             
+             debugLog('=== Resultado dos Testes de Compatibilidade ===');
+                debugLog(`XLSX: ${compatibilityResults.xlsxSupport ? 'Suportado' : 'Não suportado'}`);
+                debugLog(`XLS: ${compatibilityResults.xlsSupport ? 'Suportado' : 'Não suportado'}`);
+                debugLog(`Navegador: ${compatibilityResults.browserSupport ? 'Compatível' : 'Incompatível'}`);
+             
+             return compatibilityResults;
+         }
+         
+         function runAllTests() {
+             debugLog('🧪 EXECUTANDO TODOS OS TESTES DO SISTEMA 🧪');
+            debugLog('================================================');
+             
+             const startTime = performance.now();
+             
+             const integrityResults = runDataIntegrityTests();
+             debugLog('');
+            const performanceResults = runPerformanceTests();
+            debugLog('');
+            const compatibilityResults = testExcelCompatibility();
+            debugLog('');
+             
+             const endTime = performance.now();
+             const totalTime = endTime - startTime;
+             
+             debugLog('================================================');
+            debugLog('📊 RESUMO GERAL DOS TESTES');
+            debugLog('================================================');
+            debugLog(`⏱️ Tempo total de execução: ${totalTime.toFixed(2)}ms`);
+            debugLog(`📈 Integridade: ${integrityResults.passedTests}/${integrityResults.totalTests} testes passaram`);
+            debugLog(`⚡ Performance: Exportação ${performanceResults.exportTime.toFixed(2)}ms | Dashboard ${performanceResults.dashboardUpdateTime.toFixed(2)}ms`);
+            debugLog(`🔧 Compatibilidade: Excel ${compatibilityResults.xlsxSupport ? '✓' : '✗'} | Navegador ${compatibilityResults.browserSupport ? '✓' : '✗'}`);
+             
+             if (integrityResults.errors.length > 0) {
+                 debugLog('⚠️ PROBLEMAS ENCONTRADOS:');
+                    integrityResults.errors.forEach(error => debugLog(`   - ${error}`));
+             }
+             
+             return {
+                 integrity: integrityResults,
+                 performance: performanceResults,
+                 compatibility: compatibilityResults,
+                 totalTime: totalTime
+             };
+         }
+         
+         function isValidDate(dateString) {
+             // Check Brazilian date format (DD/MM/YYYY)
+             const brazilianDateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+             if (brazilianDateRegex.test(dateString)) {
+                 const [day, month, year] = dateString.split('/').map(Number);
+                 const date = new Date(year, month - 1, day);
+                 return date.getFullYear() === year && 
+                        date.getMonth() === month - 1 && 
+                        date.getDate() === day;
+             }
+             
+             // Check ISO date format
+             const isoDate = new Date(dateString);
+             return !isNaN(isoDate.getTime());
+         }
+         
+         // Auto-run tests on page load (for development)
+         document.addEventListener('DOMContentLoaded', function() {
+             // Uncomment the line below to run tests automatically
+             // setTimeout(() => runAllTests(), 2000);
+         });
+    </script>
+</body>
+</html>

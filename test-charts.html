@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Gráficos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .chart-container { width: 600px; height: 400px; margin: 20px auto; border: 1px solid #ccc; padding: 10px; }
+        h2 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Gráficos Chart.js</h1>
+    
+    <div class="chart-container">
+        <h2>Gráfico de Barras</h2>
+        <canvas id="barChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <h2>Gráfico de Pizza</h2>
+        <canvas id="pieChart"></canvas>
+    </div>
+    
+    <script>
+        // Teste Gráfico de Barras
+        const barCtx = document.getElementById('barChart');
+        if (barCtx) {
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
+                    datasets: [{
+                        label: 'Vendas',
+                        data: [12, 19, 3, 5, 2],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+            console.log('Gráfico de barras criado com sucesso');
+        }
+
+        
+        // Teste Gráfico de Pizza
+        const pieCtx = document.getElementById('pieChart');
+        if (pieCtx) {
+            new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Concluído', 'Em Andamento'],
+                    datasets: [{
+                        data: [33, 17],
+                        backgroundColor: ['#22c55e', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+            console.log('Gráfico de pizza criado com sucesso');
+        }
+    </script>
+</body>
+</html>

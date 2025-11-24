@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: #003E7E;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Funcionalidades</h1>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        function TestApp() {
+            const [showPanel, setShowPanel] = useState(false);
+            const [counter, setCounter] = useState(0);
+            const panelRef = useRef(null);
+            const timeoutRef = useRef(null);
+            
+            // Auto-hide após 2 segundos
+            useEffect(() => {
+                if (!showPanel) return;
+                
+                console.log('Painel aberto, iniciando timer...');
+                
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                }
+                
+                timeoutRef.current = setTimeout(() => {
+                    console.log('Timer expirou, fechando painel...');
+                    setShowPanel(false);
+                }, 2000);
+                
+                return () => {
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                    }
+                };
+            }, [showPanel]);
+            
+            // Fechar ao clicar fora
+            useEffect(() => {
+                if (!showPanel) return;
+                
+                const handleClickOutside = (event) => {
+                    if (panelRef.current && !panelRef.current.contains(event.target)) {
+                        console.log('Clique fora detectado');
+                        setShowPanel(false);
+                    }
+                };
+                
+                setTimeout(() => {
+                    document.addEventListener('mousedown', handleClickOutside);
+                }, 100);
+                
+                return () => {
+                    document.removeEventListener('mousedown', handleClickOutside);
+                };
+            }, [showPanel]);
+            
+            const resetTimer = () => {
+                console.log('Timer resetado');
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                }
+                timeoutRef.current = setTimeout(() => {
+                    console.log('Timer expirou após reset');
+                    setShowPanel(false);
+                }, 2000);
+            };
+            
+            return (
+                <div>
+                    <div className="test-box">
+                        <h2>Teste 1: Botão de Filtros</h2>
+                        <button onClick={() => {
+                            console.log('Botão clicado');
+                            setShowPanel(!showPanel);
+                        }}>
+                            {showPanel ? 'Fechar' : 'Abrir'} Painel
+                        </button>
+                        <p>Status: {showPanel ? 'ABERTO' : 'FECHADO'}</p>
+                    </div>
+                    
+                    {showPanel && (
+                        <div 
+                            ref={panelRef}
+                            className="test-box"
+                            style={{
+                                border: '2px solid #003E7E',
+                                background: '#e3f2fd'
+                            }}
+                            onMouseEnter={() => {
+                                console.log('Mouse entrou no painel');
+                                if (timeoutRef.current) {
+                                    clearTimeout(timeoutRef.current);
+                                }
+                            }}
+                            onMouseLeave={() => {
+                                console.log('Mouse saiu do painel');
+                                resetTimer();
+                            }}
+                            onClick={() => {
+                                console.log('Painel clicado');
+                                resetTimer();
+                            }}
+                        >
+                            <h3>Painel de Teste</h3>
+                            <p>Este painel deve fechar após 2 segundos de inatividade</p>
+                            <p>Passe o mouse ou clique para resetar o timer</p>
+                            <button onClick={() => setCounter(counter + 1)}>
+                                Contador: {counter}
+                            </button>
+                        </div>
+                    )}
+                    
+                    <div className="test-box">
+                        <h2>Teste 2: Clique Fora</h2>
+                        <p>Clique fora do painel azul para fechá-lo</p>
+                    </div>
+                    
+                    <div className="test-box">
+                        <h2>Instruções</h2>
+                        <ol>
+                            <li>Clique em "Abrir Painel"</li>
+                            <li>Aguarde 2 segundos sem interagir - deve fechar automaticamente</li>
+                            <li>Abra novamente e passe o mouse sobre o painel - não deve fechar</li>
+                            <li>Saia do painel e aguarde 2s - deve fechar</li>
+                            <li>Abra e clique fora - deve fechar imediatamente</li>
+                        </ol>
+                    </div>
+                </div>
+            );
+        }
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TestApp />);
+    </script>
+</body>
+</html>

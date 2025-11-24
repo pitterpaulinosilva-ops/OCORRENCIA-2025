@@ -1,0 +1,42 @@
+{
+  "name": "dashboard-ocorrencias-2025",
+  "version": "1.0.0",
+  "description": "Painel de Ocorrências - SESI/SENAI Alagoas - Dashboard interativo para monitoramento e análise de ocorrências com funcionalidades de importação/exportação Excel",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 3000 -o",
+    "dev": "npx live-server --port=3000 --open=/index.html",
+    "serve": "npx serve . -p 3000",
+    "build": "echo 'Build completed - Static files ready for deployment'",
+    "preview": "npx serve . -p 4173",
+    "vercel-build": "echo 'Vercel build completed'"
+  },
+  "keywords": [
+    "dashboard",
+    "ocorrencias",
+    "sesi",
+    "senai",
+    "alagoas",
+    "excel",
+    "analytics",
+    "monitoring",
+    "spa",
+    "javascript"
+  ],
+  "author": "SESI/SENAI Alagoas",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pitterpaulinosilva-ops/DASHBOARD-OCORRENCIA.git"
+  },
+  "homepage": "https://dashboard-ocorrencias-2025.vercel.app",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2",
+    "serve": "^14.2.1"
+  },
+  "dependencies": {}
+}
